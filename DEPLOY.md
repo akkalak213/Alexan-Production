@@ -164,3 +164,6 @@ Repository ปัจจุบันคือ `akkalak213/Alexan-Production` ห�
 - [ ] ลองใส่รหัสผ่านผิดติดกัน 10 ครั้ง ต้องขึ้นข้อความให้รออีก 15 นาที (ต้อง deploy รอบที่มี migration `login_attempt` แล้ว)
 - [ ] อัปโหลดรูปในหลังบ้านได้จริง — CSP เปิด `connect-src` ให้ R2 ไว้แล้ว ถ้าอัปโหลดไม่ได้ให้ดู console ก่อนเดาว่าเป็น CORS
 - [ ] `npm audit` แล้วยืนยันว่าที่เหลือมีแต่ของ `prisma` CLI ซึ่งไม่ได้รันใน production
+- [ ] **Cloudflare → Security → Settings → Email Address Obfuscation ต้องเป็น Off**
+      Cloudflare เปิดให้อัตโนมัติตอนสมัคร zone ใหม่ ถ้าเปิดอยู่จะแก้ HTML ที่เราส่งออกไป
+      แล้ว React hydrate ไม่ตรงทุกหน้า พร้อม CSP violation ใน console (ดู `docs/security.md`)
