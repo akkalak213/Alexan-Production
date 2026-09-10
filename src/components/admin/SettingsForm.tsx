@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react'
 import { AdminCard } from '@/components/admin/AdminPage'
+import { useActionToast } from '@/components/ui/Toast'
 import { SubmitButton } from '@/components/admin/AdminUI'
 import { Field, FormMessage, Input, Textarea } from '@/components/ui/Form'
 import { initialAdminState } from '@/server/admin-state'
@@ -21,6 +22,8 @@ export function SettingsForm({
   quote: Group
 }) {
   const [state, formAction] = useActionState(saveSettings, initialAdminState)
+
+  useActionToast(state)
   const value = (group: Group, key: string) => String(group?.[key] ?? '')
 
   return (

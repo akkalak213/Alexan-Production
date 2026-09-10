@@ -32,10 +32,12 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # ค่าที่ต้องฝังเข้า bundle ตั้งแต่ตอน build (NEXT_PUBLIC_*)
-ARG NEXT_PUBLIC_SITE_URL
+ARG NEXT_PUBLIC_SITE_URL=https://alexan.studio
 ARG NEXT_PUBLIC_GA_ID
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV NEXT_PUBLIC_GA_ID=$NEXT_PUBLIC_GA_ID
+ARG NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+ENV NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION=$NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
 
 # next.config อ่านค่านี้ตอน build เพื่อใส่โดเมน R2 ลงใน images.remotePatterns
 # ตั้งเป็น runtime variable อย่างเดียวไม่พอ — รูปที่อัปโหลดจะโดน next/image ปฏิเสธ

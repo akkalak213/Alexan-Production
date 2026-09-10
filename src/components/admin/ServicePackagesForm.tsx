@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { useActionState, useState } from 'react'
 import { PriceUnit } from '@/generated/prisma/enums'
 import { SubmitButton, VersionField } from '@/components/admin/AdminUI'
+import { useActionToast } from '@/components/ui/Toast'
 import { FormMessage, Input, Select, Textarea } from '@/components/ui/Form'
 import { priceUnitLabels } from '@/lib/admin-labels'
 import { initialAdminState } from '@/server/admin-state'
@@ -40,6 +41,8 @@ export function ServicePackagesForm({
   initial: PackageRow[]
 }) {
   const [state, formAction] = useActionState(saveServicePackages, initialAdminState)
+
+  useActionToast(state)
 
   /**
    * แต่ละแถวถือ id ของตัวเอง เพราะช่องกรอกเป็นแบบ uncontrolled

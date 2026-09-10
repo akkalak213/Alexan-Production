@@ -2,6 +2,7 @@ import { Clock, Facebook, Instagram, Mail, MapPin, MessageCircle, Phone, Youtube
 import { getLocale, getTranslations } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
 import { LineIcon, TikTokIcon } from '@/components/ui/BrandIcons'
+import { safeExternalUrl } from '@/lib/external-link'
 import { getSiteSettings } from '@/lib/settings'
 import { Wordmark } from './Wordmark'
 
@@ -58,8 +59,10 @@ export async function SiteFooter() {
    */
   const seen = new Set<string>()
   const socialLinks = socials
-    .map((item) => ({ ...item, url: social[item.key] }))
-    .filter((item) => {
+    // กรอง scheme ก่อนเสมอ — ค่ามาจากหน้าตั้งค่า ไม่ใช่ค่าที่เขียนไว้ในโค้ด
+    .map((item) => ({ ...item, url: safeExternalUrl(social[item.key]) }))
+    // type predicate เพราะ filter ธรรมดาไม่ narrow ชนิดให้ url พ้นจาก null
+    .filter((item): item is typeof item & { url: string } => {
       if (!item.url || seen.has(item.url)) return false
       seen.add(item.url)
       return true

@@ -1,13 +1,16 @@
 import { Clock, Mail, MapPin, MessageCircle, Phone } from 'lucide-react'
 import type { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
-import type { Locale } from '@/i18n/routing'
+import { localizedPath, type Locale } from '@/i18n/routing'
 import { pageMetadata } from '@/lib/seo'
 import { LeadForm } from '@/components/forms/LeadForm'
 import { formatPrice, toNumber } from '@/lib/format'
 import { getSiteSettings } from '@/lib/settings'
+import { safeExternalUrl } from '@/lib/external-link'
 import { budgetRangeFor } from '@/lib/validations'
 import { getPackageForQuote } from '@/server/queries'
+import { JsonLd } from '@/components/JsonLd'
+import { breadcrumbSchema, webPageSchema } from '@/lib/structured-data'
 
 /**
  * เรนเดอร์ตอนมีคนขอ ไม่ prerender ตอน build
@@ -50,13 +53,14 @@ export default async function ContactPage({
   const { package: packageId } = await searchParams
   setRequestLocale(locale)
 
-  const [t, tc, settings, pkg] = await Promise.all([
+  const [t, tc, tNav, settings, pkg] = await Promise.all([
     getTranslations('contact'),
     getTranslations('common'),
+    getTranslations('nav'),
     getSiteSettings(),
     packageId ? getPackageForQuote(packageId) : null,
   ])
-  const { company } = settings
+  const { company, social } = settings
   const isThai = locale === 'th'
 
   /**
@@ -90,6 +94,12 @@ export default async function ContactPage({
       }
     : null
 
+  /**
+   * ลิงก์ LINE ใช้เฉพาะค่าที่ตั้งไว้ใน social.line และผ่านการกรอง scheme แล้วเท่านั้น
+   * ถ้ามีแต่ ID จะแสดงเป็นข้อความพร้อมป้ายกำกับ ไม่ปั้นลิงก์เดาเอาจากชื่อบัญชี
+   */
+  const lineHref = safeExternalUrl(social.line)
+
   const details = [
     company.email && { icon: Mail, value: company.email, href: `mailto:${company.email}` },
     company.phone && {
@@ -97,11 +107,38 @@ export default async function ContactPage({
       value: company.phone,
       href: `tel:${company.phone.replace(/\s/g, '')}`,
     },
-    company.lineId && { icon: MessageCircle, value: company.lineId, href: null },
+    (company.lineId || lineHref) && {
+      icon: MessageCircle,
+      value: company.lineId || lineHref,
+      href: lineHref,
+      note: lineHref ? undefined : t('lineIdNote'),
+    },
     { icon: MapPin, value: isThai ? company.addressTh : company.addressEn, href: null },
-  ].filter(Boolean) as { icon: typeof Mail; value: string; href: string | null }[]
+  ].filter(Boolean) as { icon: typeof Mail; value: string; href: string | null; note?: string }[]
 
   return (
+    <>
+      {/*
+        ContactPage บอกเครื่องมือค้นหาว่าหน้านี้คือ "ทางติดต่อ" ของกิจการ ไม่ใช่หน้าเนื้อหาทั่วไป
+        เป็นสิ่งที่ AI ใช้ตัดสินว่าจะส่งคนที่ถามว่า "ติดต่อยังไง" มาที่หน้านี้หรือไปหน้าอื่น
+        ส่วนเบอร์ อีเมล และที่อยู่จริงประกาศไว้ที่กิจการใน layout แล้ว ไม่ประกาศซ้ำ
+      */}
+      <JsonLd
+        data={webPageSchema({
+          type: 'ContactPage',
+          name: t('title'),
+          description: t('subtitle'),
+          path: '/contact',
+          locale,
+        })}
+      />
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: tNav('home'), path: localizedPath(locale) },
+          { name: tNav('contact'), path: localizedPath(locale, '/contact') },
+        ])}
+      />
+
     <section className="py-16 md:py-24">
       <div className="container">
         {/* stage ไล่จังหวะให้หัวเรื่องทีละชิ้นเหมือนหน้าแรก หน้านี้คือหน้าที่ลูกค้าตัดสินใจ */}
@@ -136,7 +173,7 @@ export default async function ContactPage({
             <div>
               <h2 className="mb-5 text-sm font-medium">{t('directTitle')}</h2>
               <ul className="space-y-4">
-                {details.map(({ icon: Icon, value, href }) => (
+                {details.map(({ icon: Icon, value, href, note }) => (
                   <li key={value} className="flex gap-3">
                     <Icon
                       size={17}
@@ -152,7 +189,14 @@ export default async function ContactPage({
                         {value}
                       </a>
                     ) : (
-                      <span className="text-sm text-muted-foreground text-pretty">{value}</span>
+                      <span className="text-sm text-muted-foreground text-pretty">
+                        {value}
+                        {note && (
+                          <span className="mt-0.5 block text-xs text-muted-foreground/80">
+                            {note}
+                          </span>
+                        )}
+                      </span>
                     )}
                   </li>
                 ))}
@@ -174,5 +218,6 @@ export default async function ContactPage({
         </div>
       </div>
     </section>
+    </>
   )
 }

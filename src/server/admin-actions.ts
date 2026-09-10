@@ -2,22 +2,20 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { auth } from '@/auth'
 import { LeadStatus, ReviewStatus } from '@/generated/prisma/enums'
 import { db } from '@/lib/db'
 import type { AdminActionState } from './admin-state'
+import { requireEditor } from './cms-helpers'
 
 /**
  * Server action ของหลังบ้าน
  *
- * ทุกตัวต้องเช็ค session เอง — server action เป็น endpoint สาธารณะที่ใครก็ยิงได้
+ * ทุกตัวต้องเช็คสิทธิ์เอง — server action เป็น endpoint สาธารณะที่ใครก็ยิงได้
  * middleware กันแค่การเปิดหน้า ไม่ได้กันการเรียก action ตรง ๆ
+ *
+ * ใช้ requireEditor ตัวเดียวกับฝั่ง CMS ไม่ใช่ตัวที่อ่านแต่ session เหมือนเดิม
+ * เพราะตัวนั้นเชื่อ JWT ที่ยังไม่หมดอายุ ทำให้บัญชีที่ถูกปิดไปแล้วยังแก้สถานะลูกค้าและรีวิวได้
  */
-async function requireUser() {
-  const session = await auth()
-  if (!session?.user) throw new Error('ไม่ได้รับอนุญาต')
-  return session.user
-}
 
 /** หน้าเว็บสาธารณะเป็น static — ต้องสั่ง revalidate เองเมื่อข้อมูลที่แสดงเปลี่ยน */
 function revalidatePublicReviews() {
@@ -31,7 +29,7 @@ export async function updateLeadStatus(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  await requireUser()
+  await requireEditor()
 
   const parsed = z
     .object({
@@ -63,7 +61,7 @@ export async function addLeadNote(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const user = await requireUser()
+  const user = await requireEditor()
 
   const parsed = z
     .object({
@@ -95,7 +93,7 @@ export async function moderateReview(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  await requireUser()
+  await requireEditor()
 
   const parsed = z
     .object({
@@ -138,7 +136,7 @@ export async function replyToReview(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  await requireUser()
+  await requireEditor()
 
   const parsed = z
     .object({

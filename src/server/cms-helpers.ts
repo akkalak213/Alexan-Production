@@ -1,17 +1,47 @@
 import { auth } from '@/auth'
+import { db } from '@/lib/db'
+import { safeExternalUrl } from '@/lib/external-link'
+import type { UserRole } from '@/generated/prisma/enums'
 
 /**
  * ตัวช่วยที่ใช้ร่วมกันในทุก action ของ CMS
  * แยกออกจากไฟล์ 'use server' เพราะไฟล์นั้น export ได้เฉพาะ async function
  */
 
-export async function requireEditor() {
+export type ActiveUser = { id: string; email: string; name: string; role: UserRole }
+
+/**
+ * ผู้ใช้ที่ล็อกอินอยู่และยังใช้งานได้จริง — คืน null ถ้าไม่ผ่าน
+ *
+ * ต้องอ่านจากฐานข้อมูล ไม่ใช่เชื่อค่าใน session token เพียงอย่างเดียว
+ * เพราะ token เป็น JWT ที่ลงนามไว้แล้วมีอายุ 8 ชั่วโมง — ปิดบัญชีหรือลดสิทธิ์คนคนหนึ่งไปแล้ว
+ * เขายังถือ token ใบเดิมที่บอกว่าเป็น ADMIN เข้ามาสั่งงานได้จนกว่าจะหมดอายุ
+ * ซึ่งเป็นช่วงเวลาที่ยาวเกินไปสำหรับกรณีที่อยากตัดสิทธิ์ทันที (เช่น คนออกจากทีม)
+ *
+ * ค่าที่คืนกลับใช้ role จากฐานข้อมูลเสมอ ไม่ใช่จาก token
+ */
+export async function getActiveUser(): Promise<ActiveUser | null> {
   const session = await auth()
-  if (!session?.user) throw new Error('ไม่ได้รับอนุญาต')
-  return session.user
+  const id = session?.user?.id
+  if (!id) return null
+
+  const user = await db.user.findUnique({
+    where: { id },
+    select: { id: true, email: true, name: true, role: true, isActive: true },
+  })
+
+  if (!user?.isActive) return null
+
+  return { id: user.id, email: user.email, name: user.name, role: user.role }
 }
 
-export async function requireAdmin() {
+export async function requireEditor(): Promise<ActiveUser> {
+  const user = await getActiveUser()
+  if (!user) throw new Error('ไม่ได้รับอนุญาต')
+  return user
+}
+
+export async function requireAdmin(): Promise<ActiveUser> {
   const user = await requireEditor()
   if (user.role !== 'ADMIN') throw new Error('ต้องเป็นผู้ดูแลระบบเท่านั้น')
   return user
@@ -82,6 +112,27 @@ export function integer(formData: FormData, key: string, fallback = 0): number {
 export function boolean(formData: FormData, key: string): boolean {
   return formData.get(key) === 'on' || formData.get(key) === 'true'
 }
+
+/**
+ * ช่องที่กรอกลิงก์มาแต่ใช้เป็นลิงก์ไม่ได้ — คืนป้ายกำกับของช่องนั้นเพื่อเอาไปบอกผู้ใช้
+ *
+ * ค่าพวกนี้จบลงที่ href บนหน้าเว็บสาธารณะ ถ้าปล่อยให้บันทึก `javascript:` ลงฐานข้อมูลได้
+ * จะกลายเป็นสคริปต์ที่รันในเบราว์เซอร์ของผู้เข้าชม — ด่านตอนเรนเดอร์กรองอีกชั้นอยู่แล้ว
+ * แต่การกันตั้งแต่ตอนบันทึกทำให้คนกรอกรู้ทันทีว่าพิมพ์ผิด แทนที่จะกดบันทึกสำเร็จ
+ * แล้วไปงงทีหลังว่าทำไมลิงก์หายไปจากหน้าเว็บเฉย ๆ
+ *
+ * ช่องว่างถือว่าผ่าน (ไม่บังคับกรอก) ตรวจเฉพาะค่าที่พิมพ์อะไรมาแล้ว
+ */
+export function invalidUrlFields(formData: FormData, fields: Record<string, string>): string[] {
+  return Object.entries(fields)
+    .filter(([key]) => {
+      const raw = text(formData, key)
+      return Boolean(raw) && safeExternalUrl(raw) === null
+    })
+    .map(([, label]) => label)
+}
+
+export const URL_FIELD_MESSAGE = 'ต้องเป็นลิงก์เต็มที่ขึ้นต้นด้วย http:// หรือ https://'
 
 /** input ชื่อซ้ำกันหลายช่อง → อาเรย์ที่ตัดค่าว่างออกแล้ว */
 export function list(formData: FormData, key: string): string[] {

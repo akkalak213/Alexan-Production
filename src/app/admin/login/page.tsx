@@ -10,7 +10,7 @@ export default function AdminLoginPage() {
     <main className="flex min-h-dvh items-center justify-center px-5 py-16">
       <div className="w-full max-w-sm">
         <div className="mb-10 text-center">
-          <Wordmark />
+          <Wordmark priority />
           <p className="mt-3 text-sm text-muted-foreground">ระบบจัดการเนื้อหาเว็บไซต์</p>
         </div>
 

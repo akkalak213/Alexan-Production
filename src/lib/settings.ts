@@ -89,8 +89,8 @@ const defaults: SiteSettings = {
   hero: {
     eyebrowTh: 'รับทำเว็บ ถ่ายภาพ ถ่ายวิดีโอ',
     eyebrowEn: 'Websites, photography, film',
-    headlineTh: 'งานเว็บกับงานภาพ จบที่ทีมเดียว',
-    headlineEn: 'The web side and the visual side, one team',
+    headlineTh: 'เว็บไซต์และงานภาพ ที่เล่าเรื่องธุรกิจคุณ',
+    headlineEn: 'Websites and visuals for your business.',
     subheadlineTh:
       'ไม่ต้องหาช่างภาพเจ้าหนึ่ง คนทำเว็บอีกเจ้าหนึ่ง แล้วมานั่งประสานเอง เราทำให้ทั้งหมดและคุณคุยกับเราที่เดียว',
     subheadlineEn:
@@ -106,10 +106,13 @@ export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
 
     const byKey = Object.fromEntries(rows.map((r) => [r.key, r.value])) as Record<string, unknown>
 
+    const hero = { ...defaults.hero, ...(byKey.hero as Partial<HeroSettings>) }
+    if (['เราสร้างสิ่งที่ธุรกิจคุณต้องใช้จริง', 'งานเว็บกับงานภาพ จบที่ทีมเดียว'].includes(hero.headlineTh)) hero.headlineTh = 'เว็บไซต์และงานภาพ ที่เล่าเรื่องธุรกิจคุณ'
+    if (['We build what your business actually needs', 'The web side and the visual side, one team'].includes(hero.headlineEn)) hero.headlineEn = 'Websites and visuals for your business.'
     return {
       company: { ...defaults.company, ...(byKey.company as Partial<CompanySettings>) },
       social: { ...defaults.social, ...(byKey.social as Partial<SocialSettings>) },
-      hero: { ...defaults.hero, ...(byKey.hero as Partial<HeroSettings>) },
+      hero,
     }
   } catch {
     // ยังไม่ได้ตั้งฐานข้อมูล หรือฐานข้อมูลล่ม — แสดงค่า default ไปก่อน

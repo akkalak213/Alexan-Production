@@ -2,12 +2,14 @@ import type { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { ServiceCategory } from '@/generated/prisma/enums'
 import { Link } from '@/i18n/navigation'
-import type { Locale } from '@/i18n/routing'
+import { localizedPath, type Locale } from '@/i18n/routing'
 import { pageMetadata } from '@/lib/seo'
 import { ProjectCard } from '@/components/work/ProjectCard'
 import { Section } from '@/components/ui/Section'
 import { cn } from '@/lib/utils'
 import { getProjectCountsByCategory, getProjects } from '@/server/queries'
+import { JsonLd } from '@/components/JsonLd'
+import { breadcrumbSchema, collectionPageSchema } from '@/lib/structured-data'
 
 const categories = Object.values(ServiceCategory)
 
@@ -43,8 +45,9 @@ export default async function WorkPage({
 
   const active = parseCategory(category)
 
-  const [t, tCat, projects, counts] = await Promise.all([
+  const [t, tNav, tCat, projects, counts] = await Promise.all([
     getTranslations('work'),
+    getTranslations('nav'),
     getTranslations('serviceCategory'),
     getProjects(active),
     getProjectCountsByCategory(),
@@ -53,6 +56,35 @@ export default async function WorkPage({
   const total = Object.values(counts).reduce((sum, n) => sum + n, 0)
 
   return (
+    <>
+      {/*
+        ประกาศรายการเฉพาะตอนไม่ได้กรอง
+        หน้าที่กรองแล้วมี canonical ชี้กลับมาที่ /work อยู่แล้ว
+        ถ้าส่งรายการที่ถูกกรองออกไปด้วย จะกลายเป็นการบอกว่าหน้าเดียวกันมีของคนละชุด
+      */}
+      {!active && (
+        <>
+          <JsonLd
+            data={collectionPageSchema({
+              name: t('title'),
+              description: t('subtitle'),
+              path: '/work',
+              locale,
+              items: projects.map((project) => ({
+                name: locale === 'th' ? project.titleTh : project.titleEn,
+                path: `/work/${project.slug}`,
+              })),
+            })}
+          />
+          <JsonLd
+            data={breadcrumbSchema([
+              { name: tNav('home'), path: localizedPath(locale) },
+              { name: tNav('work'), path: localizedPath(locale, '/work') },
+            ])}
+          />
+        </>
+      )}
+
     <Section eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')}>
       {/*
         ตัวกรองเป็นลิงก์จริง ไม่ใช่ปุ่ม JavaScript
@@ -117,5 +149,6 @@ export default async function WorkPage({
         </div>
       )}
     </Section>
+    </>
   )
 }

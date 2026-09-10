@@ -13,6 +13,7 @@ import { ProjectCard } from '@/components/work/ProjectCard'
 import { ReviewCard } from '@/components/reviews/ReviewCard'
 import { getSiteSettings } from '@/lib/settings'
 import { cn } from '@/lib/utils'
+import { isPlaceholderImage } from '@/lib/sample-content'
 import {
   getActiveServices,
   getApprovedReviews,
@@ -63,7 +64,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
    * ต้องเช็ครูปปกด้วย ไม่ใช่หยิบชิ้นแรกมาดื้อ ๆ — ชิ้นที่รูปปกว่างจะทำให้ next/image ล้มทั้งหน้า
    * และถ้าข้ามไปเฉย ๆ ผลงานชิ้นนั้นจะหายไปจากหน้าแรกทั้งที่ตั้งเป็นผลงานเด่นไว้
    */
-  const heroIndex = featured.findIndex((project) => project.coverImage)
+  const heroIndex = featured.findIndex((project) => project.coverImage && !isPlaceholderImage(project.coverImage))
   const heroProject = heroIndex >= 0 ? featured[heroIndex] : null
   const restFeatured = featured.filter((_, index) => index !== heroIndex)
 
@@ -103,17 +104,17 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
 
         <div
           className={cn(
-            "container relative grid gap-14 py-20 md:py-28 lg:items-center lg:gap-20 lg:py-36",
+            "container relative grid gap-8 py-10 md:py-16 lg:items-center lg:gap-16 lg:py-20",
             heroProject && "lg:grid-cols-[1.15fr_1fr]",
           )}
         >
           {/* stage ไล่จังหวะให้ลูกทีละชิ้น หัวเรื่องเปิดแบบม่านรูดขึ้นแยกต่างหาก */}
-          <div className="stage">
-            <p className="mb-5 text-xs font-medium uppercase tracking-[0.2em] text-accent">
+          <div className="hero-stage min-w-0">
+            <p className="mb-5 text-sm font-medium uppercase tracking-[0.16em] text-accent">
               {isThai ? hero.eyebrowTh : hero.eyebrowEn}
             </p>
 
-            <h1 className="sweep font-display text-display-xl text-balance">
+            <h1 className="hero-title font-display text-balance">
               {isThai ? hero.headlineTh : hero.headlineEn}
             </h1>
 
@@ -121,8 +122,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
               {isThai ? hero.subheadlineTh : hero.subheadlineEn}
             </p>
 
-            <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-              <Link href="/contact" className={buttonClasses('primary', 'lg')}>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link href="/contact" className={buttonClasses('accent', 'lg')}>
                 {tc('getQuote')}
                 <ArrowRight size={18} strokeWidth={1.75} />
               </Link>
@@ -131,27 +132,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
               </Link>
             </div>
 
-            <dl className="mt-14 grid max-w-lg grid-cols-3 gap-6 border-t border-border pt-8">
-              <div>
-                <dt className="text-xs text-muted-foreground">{t('statsProjects')}</dt>
-                <dd className="tabular mt-1 font-display text-3xl">
-                  {stats.projects > 0 ? `${stats.projects}+` : '—'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-muted-foreground">{t('statsYears')}</dt>
-                <dd className="tabular mt-1 font-display text-3xl">12</dd>
-              </div>
-              <div>
-                <dt className="text-xs text-muted-foreground">{t('statsRating')}</dt>
-                <dd className="tabular mt-1 flex items-baseline gap-1.5 font-display text-3xl">
-                  {stats.averageRating > 0 ? stats.averageRating.toFixed(1) : '—'}
-                  {stats.averageRating > 0 && (
-                    <Star size={15} className="fill-accent text-accent" aria-hidden />
-                  )}
-                </dd>
-              </div>
-            </dl>
           </div>
 
           {/*
@@ -162,7 +142,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
           {heroProject && (
             <Link
               href={`/work/${heroProject.slug}`}
-              className="group relative hidden aspect-[4/5] overflow-hidden rounded-lg border border-border bg-subtle lg:block"
+              className="group relative block aspect-[4/3] overflow-hidden rounded-lg border border-border bg-subtle lg:aspect-[4/5]"
             >
               <Image
                 src={heroProject.coverImage}
@@ -172,12 +152,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
                 sizes="(min-width: 1024px) 40vw, 100vw"
                 placeholder={heroProject.coverBlurData ? 'blur' : 'empty'}
                 blurDataURL={heroProject.coverBlurData ?? undefined}
-                className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+                className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
               />
               {/* ไล่สีทึบที่ก้นภาพ ตัวหนังสือจึงอ่านออกไม่ว่าภาพข้างล่างจะสว่างแค่ไหน */}
               <div className="absolute inset-0 bg-gradient-to-t from-[hsl(240_20%_4%/0.88)] via-[hsl(240_20%_4%/0.15)] to-transparent" />
               <div className="absolute inset-x-7 bottom-7">
-                <p className="font-mono text-[0.65rem] uppercase tracking-[0.2em] text-white/70">
+                <p className="text-sm font-medium uppercase tracking-[0.12em] text-white/80">
                   {tCat(heroProject.category)}
                 </p>
                 <p className="mt-1.5 font-display text-2xl text-balance text-white">
@@ -186,6 +166,29 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
               </div>
             </Link>
           )}
+        </div>
+        <div className="container pb-10 md:pb-16">
+            {services.length > 0 && (
+              <nav aria-label={t('servicesEyebrow')} className="mt-8 flex flex-wrap gap-2">
+                {services.map((service) => (
+                  <Link
+                    key={service.id}
+                    href={`/services/${service.slug}`}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-surface/80 px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-accent/50 hover:text-foreground"
+                  >
+                    {isThai ? service.titleTh : service.titleEn}
+                    <ArrowUpRight size={14} aria-hidden />
+                  </Link>
+                ))}
+              </nav>
+            )}
+
+            {(stats.projects > 0 || stats.reviewCount > 0) && (
+              <dl className="mt-8 flex flex-wrap gap-8 border-t border-border pt-6">
+                {stats.projects > 0 && <div><dt className="text-sm text-muted-foreground">{t('statsProjects')}</dt><dd className="tabular mt-1 font-display text-3xl">{stats.projects}</dd></div>}
+                {stats.reviewCount > 0 && <div><dt className="text-sm text-muted-foreground">{t('statsRating')}</dt><dd className="tabular mt-1 flex items-center gap-2 font-display text-3xl">{stats.averageRating.toFixed(1)}<Star size={16} className="fill-accent text-accent" aria-hidden /></dd></div>}
+              </dl>
+            )}
         </div>
       </section>
 
@@ -226,7 +229,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
                   <h3 className="font-display text-2xl">
                     {isThai ? service.titleTh : service.titleEn}
                   </h3>
-                  <p className="flex-1 text-sm leading-relaxed text-muted-foreground text-pretty">
+                  <p className="flex-1 text-base leading-relaxed text-muted-foreground text-pretty">
                     {isThai ? service.taglineTh : service.taglineEn}
                   </p>
                   <span className="inline-flex items-center gap-1.5 text-sm font-medium text-accent">

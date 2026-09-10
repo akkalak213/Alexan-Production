@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react'
 import { AdminCard } from '@/components/admin/AdminPage'
+import { useActionToast } from '@/components/ui/Toast'
 import {
   BilingualTabs,
   PairInput,
@@ -40,6 +41,8 @@ export type ServiceFormData = {
 
 export function ServiceForm({ service }: { service: ServiceFormData }) {
   const [state, formAction] = useActionState(saveService, initialAdminState)
+
+  useActionToast(state)
 
   return (
     <form action={formAction} className="space-y-6">

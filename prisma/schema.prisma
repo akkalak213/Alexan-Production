@@ -118,6 +118,26 @@ model User {
   mediaFiles MediaAsset[]
 }
 
+/// บันทึกการพยายามเข้าสู่ระบบ เพื่อชะลอการเดารหัสผ่าน
+///
+/// เก็บในฐานข้อมูลไม่ใช่หน่วยความจำ เพราะ Railway รันได้หลาย container และ restart บ่อย
+/// ตัวนับใน memory จะรีเซ็ตทุกครั้งที่ deploy — คนเดารหัสรอแค่ deploy รอบถัดไปก็เริ่มนับใหม่
+///
+/// ไม่เก็บอีเมลและ IP เป็นค่าดิบ เก็บเฉพาะ hash ที่ผสม AUTH_SECRET แล้วย้อนกลับไม่ได้
+/// ตารางนี้จึงไม่ได้เพิ่มข้อมูลส่วนบุคคลที่ต้องดูแลเพิ่มจากที่มีอยู่
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  /// hash ของอีเมลที่กรอกเข้ามา — ล็อกเป็นรายบัญชี ไม่ใช่ทั้งระบบ
+  emailHash String
+  /// hash ของ IP ต้นทาง — กันการไล่เดาหลายบัญชีจากเครื่องเดียว
+  ipHash    String
+  success   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([emailHash, createdAt])
+  @@index([ipHash, createdAt])
+}
+
 // ─────────────────────────── บริการ ───────────────────────────
 
 model Service {

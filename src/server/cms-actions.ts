@@ -14,6 +14,7 @@ import type { AdminActionState } from './admin-state'
 import {
   boolean,
   integer,
+  invalidUrlFields,
   isStaleWrite,
   list,
   listSignature,
@@ -25,6 +26,7 @@ import {
   slugify,
   STALE_WRITE_MESSAGE,
   text,
+  URL_FIELD_MESSAGE,
   versionOf,
 } from './cms-helpers'
 
@@ -97,6 +99,16 @@ export async function saveProject(
    */
   const coverImage = text(formData, 'coverImage')
   if (!coverImage) return { status: 'error', message: 'ต้องใส่รูปปกก่อนบันทึก' }
+
+  // สามช่องนี้ไปจบที่ href และ iframe บนหน้าผลงาน — กันค่าที่กดแล้วรันสคริปต์ตั้งแต่ตอนบันทึก
+  const badUrls = invalidUrlFields(formData, {
+    videoUrl: 'ลิงก์วิดีโอ',
+    liveUrl: 'ลิงก์เว็บไซต์จริง',
+    repoUrl: 'ลิงก์ซอร์สโค้ด',
+  })
+  if (badUrls.length) {
+    return { status: 'error', message: `${badUrls.join(' และ ')} ${URL_FIELD_MESSAGE}` }
+  }
 
   const slug = slugify(text(formData, 'slug') || text(formData, 'titleEn') || titleTh)
   const status = text(formData, 'status') as ContentStatus
@@ -592,6 +604,22 @@ export async function saveSettings(
   formData: FormData,
 ): Promise<AdminActionState> {
   await requireAdmin()
+
+  /**
+   * ลิงก์โซเชียลขึ้นทุกหน้าผ่านฟุตเตอร์ และลิงก์แผนที่เอาไปใส่ href เช่นกัน
+   * ค่าที่หลุดเข้ามาเป็น `javascript:` จึงกลายเป็น stored XSS ที่กระทบทั้งเว็บ ไม่ใช่หน้าเดียว
+   */
+  const badUrls = invalidUrlFields(formData, {
+    social_facebook: 'Facebook',
+    social_instagram: 'Instagram',
+    social_youtube: 'YouTube',
+    social_tiktok: 'TikTok',
+    social_line: 'LINE',
+    company_mapUrl: 'ลิงก์แผนที่',
+  })
+  if (badUrls.length) {
+    return { status: 'error', message: `${badUrls.join(', ')} ${URL_FIELD_MESSAGE}` }
+  }
 
   const company = {
     nameTh: text(formData, 'company_nameTh'),

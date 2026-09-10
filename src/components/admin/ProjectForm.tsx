@@ -5,12 +5,14 @@ import { useActionState } from 'react'
 import { ContentStatus, ServiceCategory } from '@/generated/prisma/enums'
 import {
   BilingualTabs,
+  ConfirmSubmitButton,
   PairInput,
   RepeatableInput,
   SubmitButton,
   VersionField,
 } from '@/components/admin/AdminUI'
 import { AdminCard } from '@/components/admin/AdminPage'
+import { useActionToast } from '@/components/ui/Toast'
 import { ImageField, ImageListField } from '@/components/admin/ImageField'
 import { buttonClasses } from '@/components/ui/Button'
 import { Field, FormMessage, Input, Select, Textarea } from '@/components/ui/Form'
@@ -75,6 +77,8 @@ export const emptyProject: ProjectFormData = {
 
 export function ProjectForm({ project }: { project: ProjectFormData }) {
   const [state, formAction] = useActionState(saveProject, initialAdminState)
+
+  useActionToast(state)
   const isEditing = Boolean(project.id)
 
   return (
@@ -256,9 +260,9 @@ export function ProjectForm({ project }: { project: ProjectFormData }) {
             <p className="text-sm font-medium">ลบผลงานนี้</p>
             <p className="text-xs text-muted-foreground">ลบแล้วกู้คืนไม่ได้ รวมถึงรูปในแกลเลอรีทั้งหมด</p>
           </div>
-          <SubmitButton variant="outline" size="sm" pendingLabel="กำลังลบ">
+          <ConfirmSubmitButton variant="outline" size="sm" pendingLabel="กำลังลบ">
             ลบถาวร
-          </SubmitButton>
+          </ConfirmSubmitButton>
         </form>
       )}
     </div>

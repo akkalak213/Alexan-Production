@@ -1,10 +1,11 @@
-import type { ComponentProps, ReactNode } from 'react'
+import { Children, cloneElement, isValidElement, type ComponentProps, type ReactNode } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const controlClasses =
-  'w-full rounded-md border border-input bg-surface px-3.5 py-2.5 text-sm text-foreground ' +
-  'placeholder:text-muted-foreground/70 transition-colors ' +
-  'hover:border-foreground/25 focus:border-ring disabled:cursor-not-allowed disabled:opacity-60 ' +
+  'w-full rounded-md border border-input bg-surface px-3.5 py-2.5 text-base min-h-11 text-foreground ' +
+  'placeholder:text-muted-foreground transition-colors ' +
+  'hover:border-ring focus:border-ring disabled:cursor-not-allowed disabled:opacity-60 ' +
   'aria-[invalid=true]:border-destructive'
 
 type FieldProps = {
@@ -47,15 +48,19 @@ export function Field({
         )}
       </label>
 
-      {children}
+      {Children.map(children, (child) => {
+        if (!isValidElement<{ id?: string; 'aria-describedby'?: string; 'aria-invalid'?: boolean }>(child) || child.props.id !== htmlFor) return child
+        const describedBy = [child.props['aria-describedby'], error?.length ? errorId : hint ? hintId : undefined].filter(Boolean).join(' ')
+        return cloneElement(child, { 'aria-describedby': describedBy || undefined, 'aria-invalid': Boolean(error?.length) || child.props['aria-invalid'] })
+      })}
 
       {hint && !error?.length && (
-        <p id={hintId} className="text-xs text-muted-foreground">
+        <p id={hintId} className="text-sm text-muted-foreground">
           {hint}
         </p>
       )}
       {error?.length ? (
-        <p id={errorId} className="text-xs text-destructive">
+        <p id={errorId} className="text-sm text-destructive">
           {error.join(' · ')}
         </p>
       ) : null}
@@ -73,9 +78,12 @@ export function Textarea({ className, ...props }: ComponentProps<'textarea'>) {
 
 export function Select({ className, children, ...props }: ComponentProps<'select'>) {
   return (
-    <select className={cn(controlClasses, 'appearance-none pr-9', className)} {...props}>
-      {children}
-    </select>
+    <span className="relative block">
+      <select className={cn(controlClasses, 'appearance-none pr-11', className)} {...props}>
+        {children}
+      </select>
+      <ChevronDown size={18} aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+    </span>
   )
 }
 

@@ -111,6 +111,8 @@ const FLASH = (() => {
   }
 })()
 
+import { cn } from '@/lib/utils'
+
 export function StudioScene({ className }: { className?: string }) {
   return (
     <svg
@@ -118,7 +120,7 @@ export function StudioScene({ className }: { className?: string }) {
       preserveAspectRatio="xMidYMax slice"
       role="img"
       aria-label="ภาพจำลองสตูดิโอถ่ายภาพ ช่างภาพยืนกดชัตเตอร์ที่กล้องซึ่งติดแฟลชหัวกลม มีซอฟต์บ็อกซ์สองดวง ไฟบูมเหนือสินค้า แผ่นสะท้อนแสง และฉากหลังกระดาษโค้ง"
-      className={className}
+      className={cn('studio-scene', className)}
       fill="none"
     >
       <defs>

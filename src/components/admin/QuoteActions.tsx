@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useActionState } from 'react'
 import type { QuoteStatus } from '@/generated/prisma/enums'
 import { SubmitButton } from '@/components/admin/AdminUI'
+import { useActionToast } from '@/components/ui/Toast'
 import { AdminCard, StatusPill } from '@/components/admin/AdminPage'
 import { buttonClasses } from '@/components/ui/Button'
 import { FormMessage } from '@/components/ui/Form'
@@ -50,6 +51,8 @@ export function QuoteActions({
   canSendMail: boolean
 }) {
   const [state, sendAction] = useActionState(sendQuoteToCustomer, initialAdminState)
+
+  useActionToast(state)
 
   const timeline = [
     sentAt && `ส่งให้ลูกค้าเมื่อ ${dateTime.format(new Date(sentAt))}`,

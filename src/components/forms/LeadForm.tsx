@@ -2,12 +2,12 @@
 
 import { Check } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
-import { useActionState, useState } from 'react'
+import { useActionState, useEffect, useId, useRef, useState } from 'react'
 import { ServiceCategory } from '@/generated/prisma/enums'
 import { Button } from '@/components/ui/Button'
 import { Field, FormMessage, Honeypot, Input, Select, Textarea } from '@/components/ui/Form'
 import { cn } from '@/lib/utils'
-import { budgetRanges } from '@/lib/validations'
+import { budgetRanges } from '@/lib/lead-options'
 import { initialActionState } from '@/server/action-state'
 import { submitLead } from '@/server/actions'
 import { usePackageSelection, type SelectedPackage } from '@/components/services/PackageSelection'
@@ -41,6 +41,12 @@ export function LeadForm({
   const tCat = useTranslations('serviceCategory')
   const tBudget = useTranslations('budget')
   const locale = useLocale()
+  const formId = useId()
+  const fieldId = (name: string) => formId + '-' + name
+  const formRef = useRef<HTMLFormElement>(null)
+  const resultRef = useRef<HTMLDivElement>(null)
+  const [draft, setDraft] = useState({ name: '', email: '', phone: '', company: '', message: '' })
+  const [chosenServices, setChosenServices] = useState<ServiceCategory[]>(defaultService ? [defaultService] : [])
 
   const [state, formAction, isPending] = useActionState(submitLead, initialActionState)
 
@@ -75,6 +81,15 @@ export function LeadForm({
     if (selectedPackage.budgetRange) setBudget(selectedPackage.budgetRange)
   }
 
+  useEffect(() => {
+    if (state.status === 'success') resultRef.current?.focus()
+    if (state.status === 'error') {
+      const target = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"], [data-form-error]')
+      target?.focus()
+    }
+  }, [state])
+
+  const fieldError = (name: keyof typeof draft) => state.fieldErrors?.[name]?.length ? [t('validation.' + name)] : undefined
   const feedback: Record<string, string> = {
     rateLimited: t('rateLimited'),
     invalid: t('invalid'),
@@ -83,7 +98,7 @@ export function LeadForm({
 
   if (state.status === 'success') {
     return (
-      <div className="rounded-lg border border-success/30 bg-success/10 p-8">
+      <div ref={resultRef} tabIndex={-1} role="status" className="rounded-lg border border-success/30 bg-success/10 p-8">
         <p className="text-sm text-success">{t('leadSuccess')}</p>
         {state.refCode && (
           <p className="tabular mt-2 text-sm font-medium text-success">
@@ -95,7 +110,9 @@ export function LeadForm({
   }
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form ref={formRef} action={formAction} aria-busy={isPending} className="space-y-5">
+      <p className="text-sm text-muted-foreground">{t('requiredNote')}</p>
+      <p role="status" className="sr-only">{isPending ? t('sending') : ''}</p>
       <Honeypot />
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="source" value={source} />
@@ -129,7 +146,7 @@ export function LeadForm({
             <button
               type="button"
               onClick={clearPackage}
-              className="shrink-0 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-background hover:text-destructive"
+              className="min-h-11 shrink-0 rounded-md px-2 py-1 text-sm text-muted-foreground transition-colors hover:bg-background hover:text-destructive"
             >
               {t('removePackage')}
             </button>
@@ -154,47 +171,59 @@ export function LeadForm({
       )}
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field htmlFor="name" label={t('name')} required error={state.fieldErrors?.name}>
+        <Field htmlFor={fieldId('name')} label={t('name')} required error={fieldError('name')}>
           <Input
-            id="name"
+            id={fieldId('name')}
             name="name"
+            value={draft.name}
+            onChange={(event) => setDraft({ ...draft, name: event.target.value })}
             required
+            minLength={2}
+            maxLength={100}
             autoComplete="name"
             placeholder={t('namePlaceholder')}
-            aria-invalid={Boolean(state.fieldErrors?.name)}
+            aria-invalid={Boolean(fieldError('name'))}
           />
         </Field>
 
-        <Field htmlFor="email" label={t('email')} required error={state.fieldErrors?.email}>
+        <Field htmlFor={fieldId('email')} label={t('email')} required error={fieldError('email')}>
           <Input
-            id="email"
+            id={fieldId('email')}
             name="email"
+            value={draft.email}
+            onChange={(event) => setDraft({ ...draft, email: event.target.value })}
             type="email"
             required
+            maxLength={160}
             autoComplete="email"
             placeholder={t('emailPlaceholder')}
-            aria-invalid={Boolean(state.fieldErrors?.email)}
+            aria-invalid={Boolean(fieldError('email'))}
           />
         </Field>
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field htmlFor="phone" label={t('phone')} error={state.fieldErrors?.phone}>
+        <Field htmlFor={fieldId('phone')} label={t('phone')} error={fieldError('phone')}>
           <Input
-            id="phone"
+            id={fieldId('phone')}
             name="phone"
+            value={draft.phone}
+            onChange={(event) => setDraft({ ...draft, phone: event.target.value })}
             type="tel"
             inputMode="tel"
             autoComplete="tel"
             placeholder={t('phonePlaceholder')}
-            aria-invalid={Boolean(state.fieldErrors?.phone)}
+            aria-invalid={Boolean(fieldError('phone'))}
           />
         </Field>
 
-        <Field htmlFor="company" label={t('company')} error={state.fieldErrors?.company}>
+        <Field htmlFor={fieldId('company')} label={t('company')} error={fieldError('company')}>
           <Input
-            id="company"
+            id={fieldId('company')}
             name="company"
+            value={draft.company}
+            onChange={(event) => setDraft({ ...draft, company: event.target.value })}
+            maxLength={120}
             autoComplete="organization"
             placeholder={t('companyPlaceholder')}
           />
@@ -211,7 +240,7 @@ export function LeadForm({
               <label
                 key={category}
                 className={cn(
-                  'inline-flex cursor-pointer select-none items-center gap-1.5 rounded-full border border-input py-1.5 pl-3 pr-3.5 text-sm text-muted-foreground',
+                  'inline-flex cursor-pointer select-none items-center gap-1.5 rounded-full border border-input min-h-11 py-1.5 pl-3 pr-3.5 text-sm text-muted-foreground',
                   'transition-colors hover:border-foreground/25 hover:bg-muted',
                   'has-[:checked]:border-accent has-[:checked]:bg-accent-subtle has-[:checked]:text-accent',
                   'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background',
@@ -221,7 +250,8 @@ export function LeadForm({
                   type="checkbox"
                   name="services"
                   value={category}
-                  defaultChecked={category === defaultService}
+                  checked={chosenServices.includes(category)}
+                  onChange={(event) => setChosenServices(event.target.checked ? [...chosenServices, category] : chosenServices.filter((value) => value !== category))}
                   className="peer sr-only"
                 />
                 <Check
@@ -237,9 +267,9 @@ export function LeadForm({
         </fieldset>
       )}
 
-      <Field htmlFor="budgetRange" label={t('budget')}>
+      <Field htmlFor={fieldId('budgetRange')} label={t('budget')}>
         <Select
-          id="budgetRange"
+          id={fieldId('budgetRange')}
           name="budgetRange"
           value={budget}
           onChange={(e) => setBudget(e.target.value)}
@@ -253,25 +283,27 @@ export function LeadForm({
         </Select>
       </Field>
 
-      <Field htmlFor="message" label={t('message')} required error={state.fieldErrors?.message}>
+      <Field htmlFor={fieldId('message')} label={t('message')} hint={t('messageHint')} required error={fieldError('message')}>
         <Textarea
-          id="message"
+          id={fieldId('message')}
           name="message"
+            value={draft.message}
+            onChange={(event) => setDraft({ ...draft, message: event.target.value })}
           required
           minLength={10}
           maxLength={3000}
           placeholder={t('messagePlaceholder')}
-          aria-invalid={Boolean(state.fieldErrors?.message)}
+          aria-invalid={Boolean(fieldError('message'))}
         />
       </Field>
 
       {state.status === 'error' && (
-        <FormMessage status="error">
+        <div data-form-error tabIndex={-1}><FormMessage status="error">
           {feedback[state.messageKey ?? 'serverError'] ?? t('serverError')}
-        </FormMessage>
+        </FormMessage></div>
       )}
 
-      <Button type="submit" size="lg" disabled={isPending}>
+      <Button type="submit" size="lg" variant="accent" disabled={isPending}>
         {isPending ? t('sending') : t('submitLead')}
       </Button>
     </form>

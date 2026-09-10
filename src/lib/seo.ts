@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { locales, type Locale } from '@/i18n/routing'
+import { locales, localizedPath, type Locale } from '@/i18n/routing'
 import { ogImageUrl } from './og'
 
 /**
@@ -39,7 +39,7 @@ export function pageMetadata({
   modifiedTime,
   noIndex,
 }: PageMetaInput): Metadata {
-  const languages = Object.fromEntries(locales.map((code) => [code, `/${code}${path}`]))
+  const languages = Object.fromEntries(locales.map((code) => [code, localizedPath(code, path)]))
 
   const preview = image ?? ogImageUrl(title)
 
@@ -47,19 +47,19 @@ export function pageMetadata({
     title,
     description,
     alternates: {
-      canonical: `/${locale}${path}`,
+      canonical: localizedPath(locale, path),
       languages: {
         ...languages,
         /**
          * x-default บอกว่าจะส่งใครก็ตามที่ภาษาไม่ตรงกับที่เรามีไปหน้าไหน
          * เลือกไทยเพราะลูกค้าหลักอยู่ในไทย ไม่ใช่เพราะมันเป็นภาษาเริ่มต้นของโค้ด
          */
-        'x-default': `/th${path}`,
+        'x-default': localizedPath('th', path),
       },
     },
     openGraph: {
       type,
-      url: `/${locale}${path}`,
+      url: localizedPath(locale, path),
       title,
       description,
       locale: locale === 'th' ? 'th_TH' : 'en_US',

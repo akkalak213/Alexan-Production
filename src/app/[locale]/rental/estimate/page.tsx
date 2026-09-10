@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
-import type { Locale } from '@/i18n/routing'
+import { localizedPath, type Locale } from '@/i18n/routing'
 import { buttonClasses } from '@/components/ui/Button'
 import { PrintButton } from '@/components/ui/PrintButton'
 import { bahtText } from '@/lib/baht-text'
@@ -173,7 +173,7 @@ export default async function RentalEstimatePage({ params, searchParams }: Param
             </Link>
           ))}
           {/* ค่าที่ไม่มีในปุ่มลัด เช่น 4 หรือ 10 วัน ยังกรอกเองได้ */}
-          <form action={`/${locale}/rental/estimate`} className="ml-auto flex items-center gap-2">
+          <form action={localizedPath(locale, `/rental/estimate`)} className="ml-auto flex items-center gap-2">
             <input type="hidden" name="items" value={itemsParam} />
             <label htmlFor="days" className="sr-only">
               {t('rentalDays')}

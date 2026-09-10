@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { resolveSiteOrigin, SITE_ORIGIN } from './site'
 
 /**
  * ตรวจ environment variable ตอนบูตแอป แทนที่จะปล่อยให้พังกลางทางด้วย `undefined!`
@@ -10,6 +11,15 @@ const serverSchema = z.object({
   DATABASE_URL: z.string().min(1, 'ต้องมี DATABASE_URL ของ Railway Postgres'),
 
   AUTH_SECRET: z.string().min(32, 'AUTH_SECRET ต้องยาวอย่างน้อย 32 ตัวอักษร'),
+
+  /**
+   * จำนวน reverse proxy ที่คั่นระหว่างผู้ใช้กับแอป
+   *
+   * ใช้เลือกว่าจะเชื่อ x-forwarded-for ตัวไหน — ดู clientIpFrom ใน src/lib/rate-limit.ts
+   * Railway ตัวเดียวคือ 1 ถ้าเอา CDN มาคั่นเพิ่มอีกชั้นต้องขยับเป็น 2
+   * ตั้งผิดเป็นเลขน้อยเกินไป = เชื่อค่าที่ผู้เรียกแต่งเองได้ ตั้งมากเกินไป = ทุกคนถูกนับเป็น IP เดียว
+   */
+  TRUSTED_PROXY_HOPS: z.coerce.number().int().min(1).max(5).default(1),
 
   // Cloudflare R2 — ไม่บังคับตอน dev ถ้ายังไม่อัปโหลดไฟล์
   R2_ACCOUNT_ID: z.string().optional(),
@@ -25,8 +35,15 @@ const serverSchema = z.object({
 })
 
 const clientSchema = z.object({
-  NEXT_PUBLIC_SITE_URL: z.url().default('http://localhost:3000'),
+  NEXT_PUBLIC_SITE_URL: z.url().default(SITE_ORIGIN),
   NEXT_PUBLIC_GA_ID: z.string().optional(),
+  /**
+   * รหัสยืนยันความเป็นเจ้าของเว็บใน Google Search Console
+   *
+   * ต้องยืนยันก่อนถึงจะเห็นว่าคนค้นด้วยคำไหนแล้วเจอเรา หน้าไหนติดอันดับ และหน้าไหนถูกปฏิเสธ
+   * ซึ่งเป็นข้อมูลชุดเดียวที่บอกได้ว่างาน SEO ที่ทำไปได้ผลจริงหรือเปล่า — เดาเอาจากข้างนอกไม่ได้
+   */
+  NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION: z.string().optional(),
 })
 
 const skip = process.env.SKIP_ENV_VALIDATION === '1'
@@ -39,7 +56,7 @@ const skip = process.env.SKIP_ENV_VALIDATION === '1'
  * ซึ่งอ่านแล้วเดาไม่ออกว่าต้นเหตุอยู่ที่ค่าตัวไหน
  */
 function normalizeUrl(value: string | undefined): string | undefined {
-  if (!value) return value
+  if (!value) return undefined
   const trimmed = value.trim().replace(/\/+$/, '')
   if (!trimmed) return undefined
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
@@ -68,8 +85,9 @@ export const serverEnv = parse(
 export const clientEnv = parse(
   clientSchema,
   {
-    NEXT_PUBLIC_SITE_URL: normalizeUrl(process.env.NEXT_PUBLIC_SITE_URL),
+    NEXT_PUBLIC_SITE_URL: resolveSiteOrigin(process.env.NEXT_PUBLIC_SITE_URL),
     NEXT_PUBLIC_GA_ID: process.env.NEXT_PUBLIC_GA_ID,
+    NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
   },
   'environment variable ฝั่งเบราว์เซอร์',
 )

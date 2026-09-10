@@ -2,12 +2,14 @@ import { ArrowRight, ArrowUpRight } from 'lucide-react'
 import type { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
-import type { Locale } from '@/i18n/routing'
+import { localizedPath, type Locale } from '@/i18n/routing'
 import { pageMetadata } from '@/lib/seo'
 import { buttonClasses } from '@/components/ui/Button'
 import { Section } from '@/components/ui/Section'
 import { ServiceIcon } from '@/components/ui/ServiceIcon'
 import { getActiveServices } from '@/server/queries'
+import { JsonLd } from '@/components/JsonLd'
+import { breadcrumbSchema, collectionPageSchema } from '@/lib/structured-data'
 
 /**
  * เรนเดอร์ตอนมีคนขอ ไม่ prerender ตอน build
@@ -43,9 +45,10 @@ export default async function ServicesPage({ params }: { params: Promise<{ local
   const { locale } = await params
   setRequestLocale(locale)
 
-  const [t, tc, services] = await Promise.all([
+  const [t, tc, tNav, services] = await Promise.all([
     getTranslations('services'),
     getTranslations('common'),
+    getTranslations('nav'),
     getActiveServices(),
   ])
 
@@ -53,6 +56,24 @@ export default async function ServicesPage({ params }: { params: Promise<{ local
 
   return (
     <>
+      <JsonLd
+        data={collectionPageSchema({
+          name: t('title'),
+          description: t('subtitle'),
+          path: '/services',
+          locale,
+          items: services.map((service) => ({
+            name: isThai ? service.titleTh : service.titleEn,
+            path: `/services/${service.slug}`,
+          })),
+        })}
+      />
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: tNav('home'), path: localizedPath(locale) },
+          { name: tNav('services'), path: localizedPath(locale, '/services') },
+        ])}
+      />
       <Section eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')}>
         {services.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border py-16 text-center text-sm text-muted-foreground">

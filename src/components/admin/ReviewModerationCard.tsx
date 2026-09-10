@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Form'
 import { RatingStars } from '@/components/ui/RatingStars'
+import { useActionToast } from '@/components/ui/Toast'
 import { serviceCategoryLabels } from '@/lib/admin-labels'
 import { initialAdminState } from '@/server/admin-state'
 import { moderateReview, replyToReview } from '@/server/admin-actions'
@@ -33,6 +34,8 @@ export function ReviewModerationCard({ review }: { review: ModerationReview }) {
     initialAdminState,
   )
   const [replyState, replyAction, isReplying] = useActionState(replyToReview, initialAdminState)
+  useActionToast(moderationState)
+  useActionToast(replyState)
   const [showReply, setShowReply] = useState(Boolean(review.replyTh || review.replyEn))
 
   return (

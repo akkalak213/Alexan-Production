@@ -3,6 +3,7 @@
 import { useSearchParams } from 'next/navigation'
 import { useActionState } from 'react'
 import { Button } from '@/components/ui/Button'
+import { useActionToast } from '@/components/ui/Toast'
 import { Field, FormMessage, Input } from '@/components/ui/Form'
 import { initialAdminState } from '@/server/admin-state'
 import { authenticate } from '@/server/auth-actions'
@@ -11,6 +12,8 @@ export function LoginForm() {
   const searchParams = useSearchParams()
   const next = searchParams.get('next') ?? '/admin'
   const [state, formAction, isPending] = useActionState(authenticate, initialAdminState)
+
+  useActionToast(state)
 
   return (
     <form action={formAction} className="space-y-5">
@@ -24,7 +27,7 @@ export function LoginForm() {
           required
           autoComplete="username"
           autoFocus
-          placeholder="admin@alexanprod.studio"
+          placeholder="admin@alexan.studio"
         />
       </Field>
 

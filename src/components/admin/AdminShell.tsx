@@ -63,12 +63,33 @@ export function AdminShell({ children, user, counts }: Props) {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
 
+  // ล็อกการเลื่อนพื้นหลังตอนเมนูเปิด และคืนค่าเดิมกลับไป ไม่ใช่ล้างทิ้งเป็นค่าว่าง
   useEffect(() => {
-    document.body.style.overflow = isOpen ? 'hidden' : ''
+    if (!isOpen) return
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
     return () => {
-      document.body.style.overflow = ''
+      document.body.style.overflow = previousOverflow
     }
   }, [isOpen])
+
+  // ขยายจอจากมือถือเป็นคอมแล้วเมนูค้างเป็นแผ่นทับอยู่ ทั้งที่ sidebar โผล่มาเองแล้ว
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 1024px)')
+    const closeOnDesktop = () => {
+      if (desktop.matches) setIsOpen(false)
+    }
+
+    desktop.addEventListener('change', closeOnDesktop)
+    return () => desktop.removeEventListener('change', closeOnDesktop)
+  }, [])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => event.key === 'Escape' && setIsOpen(false)
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   const badgeFor = (href: string) =>
     href === '/admin/leads' ? counts.leads : href === '/admin/reviews' ? counts.reviews : 0
@@ -180,7 +201,7 @@ export function AdminShell({ children, user, counts }: Props) {
 
           <div className="ml-auto flex items-center gap-2">
             <Link
-              href="/th"
+              href="/"
               target="_blank"
               rel="noreferrer"
               className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"

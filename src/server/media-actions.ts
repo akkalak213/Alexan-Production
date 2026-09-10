@@ -11,6 +11,9 @@ import {
   deleteObject,
   keyFromPublicUrl,
   MAX_UPLOAD_BYTES,
+  publicUrlFor,
+  signUploadTicket,
+  verifyUploadTicket,
 } from '@/lib/r2'
 import { requireEditor } from './cms-helpers'
 
@@ -25,7 +28,7 @@ import { requireEditor } from './cms-helpers'
  */
 
 export type UploadTicket =
-  | { ok: true; uploadUrl: string; key: string; publicUrl: string }
+  | { ok: true; uploadUrl: string; key: string; publicUrl: string; token: string }
   | { ok: false; error: string }
 
 const requestSchema = z.object({
@@ -59,9 +62,12 @@ export async function requestUpload(input: {
   }
 
   try {
+    const { contentType, size } = parsed.data
     const key = buildObjectKey(parsed.data.fileName, parsed.data.folder)
-    const ticket = await createPresignedUpload(key, parsed.data.contentType)
-    return { ok: true, ...ticket }
+    const ticket = await createPresignedUpload(key, contentType)
+
+    // ลายเซ็นผูก key เข้ากับชนิดและขนาดที่อนุมัติ ตอนบันทึกจะได้ไม่ต้องเชื่อค่าจากเบราว์เซอร์
+    return { ok: true, ...ticket, token: signUploadTicket(key, contentType, size) }
   } catch (error) {
     console.error('[media:requestUpload]', error)
     return { ok: false, error: 'ขอสิทธิ์อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง' }
@@ -69,47 +75,58 @@ export async function requestUpload(input: {
 }
 
 const confirmSchema = z.object({
-  key: z.string().min(1),
-  url: z.url(),
+  key: z.string().min(1).max(300),
+  /** ลายเซ็นที่ requestUpload ออกให้ — ผูก key เข้ากับชนิดและขนาดที่อนุมัติไป */
+  token: z.string().min(1).max(200),
   fileName: z.string().min(1).max(200),
-  mimeType: z.string().min(1).max(100),
-  size: z.number().int().positive(),
-  width: z.number().int().positive().optional(),
-  height: z.number().int().positive().optional(),
+  mimeType: z.enum(ALLOWED_IMAGE_TYPES),
+  size: z.number().int().positive().max(MAX_UPLOAD_BYTES),
+  width: z.number().int().positive().max(20000).optional(),
+  height: z.number().int().positive().max(20000).optional(),
   blurData: z.string().max(4000).optional(),
-  folder: z.string().max(40).optional(),
 })
 
 export async function confirmUpload(input: {
   key: string
-  url: string
+  token: string
   fileName: string
   mimeType: string
   size: number
   width?: number
   height?: number
   blurData?: string
-  folder?: string
 }) {
   const user = await requireEditor()
 
   const parsed = confirmSchema.safeParse(input)
   if (!parsed.success) return { ok: false as const, error: 'ข้อมูลไฟล์ไม่ถูกต้อง' }
 
+  const { key, token, mimeType, size } = parsed.data
+  if (!verifyUploadTicket(key, mimeType, size, token)) {
+    return { ok: false as const, error: 'ตั๋วอัปโหลดไม่ถูกต้อง ลองอัปโหลดใหม่อีกครั้ง' }
+  }
+
+  /**
+   * url และ folder คำนวณจาก key ที่เซ็นไว้ ไม่รับจากผู้เรียก
+   * ค่าที่รับมาแล้วเอาไปเก็บตรง ๆ จะกลายเป็นช่องให้เขียน url ชี้ไปที่ไหนก็ได้ลงคลังไฟล์
+   */
+  const url = publicUrlFor(key)
+  const folder = key.split('/')[0] || 'uploads'
+
   try {
     await db.mediaAsset.upsert({
-      where: { key: parsed.data.key },
+      where: { key },
       update: {},
       create: {
-        key: parsed.data.key,
-        url: parsed.data.url,
+        key,
+        url,
         fileName: parsed.data.fileName,
-        mimeType: parsed.data.mimeType,
-        size: parsed.data.size,
+        mimeType,
+        size,
         width: parsed.data.width ?? null,
         height: parsed.data.height ?? null,
         blurData: parsed.data.blurData ?? null,
-        folder: parsed.data.folder ?? 'uploads',
+        folder,
         uploadedById: user.id,
       },
     })

@@ -1,11 +1,12 @@
 import { cache } from 'react'
 import type { EquipmentCategory, ServiceCategory } from '@/generated/prisma/enums'
 import { db } from '@/lib/db'
+import { publicProjectWhere, publicReviewWhere } from '@/lib/sample-content'
 
 /**
  * Query ทั้งหมดของหน้าเว็บสาธารณะ
  *
- * ทุกตัวห่อด้วย safe() — ถ้าฐานข้อมูลล่ม หน้าเว็บจะแสดง empty state แทนที่จะพังทั้งหน้า
+ * Failed reads reach the localized retry boundary; empty states mean a successful read with no records.
  * แต่ยัง log ทุกครั้งเพื่อให้จับปัญหาได้จาก log ของ Railway
  */
 async function safe<T>(label: string, run: () => Promise<T>, fallback: T): Promise<T> {
@@ -13,7 +14,9 @@ async function safe<T>(label: string, run: () => Promise<T>, fallback: T): Promi
     return await run()
   } catch (error) {
     console.error(`[query:${label}] อ่านฐานข้อมูลไม่สำเร็จ`, error)
-    return fallback
+    // The fallback argument retains query inference; unavailable data is not an empty catalogue.
+    void fallback
+    throw new Error('Public data is temporarily unavailable', { cause: error })
   }
 }
 
@@ -61,8 +64,13 @@ export const getServiceBySlug = cache((slug: string) =>
 export const getServiceSlugs = cache(() =>
   safe(
     'service-slugs',
-    () => db.service.findMany({ where: { isActive: true }, select: { slug: true } }),
-    [] as { slug: string }[],
+    () =>
+      db.service.findMany({
+        where: { isActive: true },
+        // updatedAt ไปเป็น lastmod ใน sitemap — Google ใช้ตัดสินว่าควรกลับมาเก็บหน้านี้ใหม่เมื่อไหร่
+        select: { slug: true, updatedAt: true },
+      }),
+    [] as { slug: string; updatedAt: Date }[],
   ),
 )
 
@@ -88,7 +96,7 @@ export const getProjects = cache((category?: ServiceCategory) =>
     'projects',
     () =>
       db.project.findMany({
-        where: { status: 'PUBLISHED', ...(category ? { category } : {}) },
+        where: { ...publicProjectWhere, ...(category ? { category } : {}) },
         orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }, { order: 'asc' }],
         select: projectCardSelect,
       }),
@@ -101,7 +109,7 @@ export const getFeaturedProjects = cache((take = 4) =>
     'featured-projects',
     () =>
       db.project.findMany({
-        where: { status: 'PUBLISHED', isFeatured: true },
+        where: { ...publicProjectWhere, isFeatured: true },
         orderBy: [{ order: 'asc' }, { publishedAt: 'desc' }],
         take,
         select: projectCardSelect,
@@ -115,7 +123,7 @@ export const getProjectBySlug = cache((slug: string) =>
     'project-detail',
     () =>
       db.project.findFirst({
-        where: { slug, status: 'PUBLISHED' },
+        where: { slug, ...publicProjectWhere },
         include: {
           media: { orderBy: { order: 'asc' } },
           service: { select: { slug: true, titleTh: true, titleEn: true } },
@@ -128,8 +136,12 @@ export const getProjectBySlug = cache((slug: string) =>
 export const getProjectSlugs = cache(() =>
   safe(
     'project-slugs',
-    () => db.project.findMany({ where: { status: 'PUBLISHED' }, select: { slug: true } }),
-    [] as { slug: string }[],
+    () =>
+      db.project.findMany({
+        where: { ...publicProjectWhere },
+        select: { slug: true, updatedAt: true },
+      }),
+    [] as { slug: string; updatedAt: Date }[],
   ),
 )
 
@@ -138,7 +150,7 @@ export const getRelatedProjects = cache((category: ServiceCategory, excludeId: s
     'related-projects',
     () =>
       db.project.findMany({
-        where: { status: 'PUBLISHED', category, id: { not: excludeId } },
+        where: { ...publicProjectWhere, category, id: { not: excludeId } },
         orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }],
         take,
         select: projectCardSelect,
@@ -153,7 +165,7 @@ export const getProjectCountsByCategory = cache(() =>
     async () => {
       const rows = await db.project.groupBy({
         by: ['category'],
-        where: { status: 'PUBLISHED' },
+        where: { ...publicProjectWhere },
         _count: { _all: true },
       })
       return Object.fromEntries(rows.map((r) => [r.category, r._count._all])) as Partial<
@@ -201,6 +213,46 @@ export const getEquipmentByIds = cache((ids: string[]) =>
   ),
 )
 
+export const getEquipmentBySlug = cache((slug: string) =>
+  safe(
+    'equipment-detail',
+    () => db.equipment.findFirst({ where: { slug, isActive: true } }),
+    null,
+  ),
+)
+
+export const getEquipmentSlugs = cache(() =>
+  safe(
+    'equipment-slugs',
+    () =>
+      db.equipment.findMany({
+        where: { isActive: true },
+        select: { slug: true, updatedAt: true },
+      }),
+    [] as { slug: string; updatedAt: Date }[],
+  ),
+)
+
+/**
+ * อุปกรณ์อื่นในหมวดเดียวกัน ใช้ท้ายหน้ารายละเอียด
+ *
+ * นอกจากช่วยให้ลูกค้าเทียบของได้ต่อ ยังเป็นการเชื่อมหน้ารายละเอียดเข้าหากันเอง
+ * หน้าที่มีแต่ลิงก์เข้าไม่มีลิงก์ออกจะถูกมองว่าเป็นทางตัน และได้น้ำหนักน้อยกว่าที่ควร
+ */
+export const getRelatedEquipment = cache(
+  (category: EquipmentCategory, excludeId: string, take = 3) =>
+    safe(
+      'equipment-related',
+      () =>
+        db.equipment.findMany({
+          where: { isActive: true, category, id: { not: excludeId } },
+          orderBy: [{ isFeatured: 'desc' }, { order: 'asc' }],
+          take,
+        }),
+      [],
+    ),
+)
+
 export const getEquipmentCountsByCategory = cache(() =>
   safe(
     'equipment-counts',
@@ -225,7 +277,7 @@ export const getApprovedReviews = cache((take?: number) =>
     'reviews',
     () =>
       db.review.findMany({
-        where: { status: 'APPROVED' },
+        where: { ...publicReviewWhere },
         orderBy: [{ isPinned: 'desc' }, { approvedAt: 'desc' }, { createdAt: 'desc' }],
         ...(take ? { take } : {}),
         select: {
@@ -254,13 +306,13 @@ export const getReviewStats = cache(() =>
     async () => {
       const [aggregate, byRating] = await Promise.all([
         db.review.aggregate({
-          where: { status: 'APPROVED' },
+          where: { ...publicReviewWhere },
           _count: true,
           _avg: { rating: true },
         }),
         db.review.groupBy({
           by: ['rating'],
-          where: { status: 'APPROVED' },
+          where: { ...publicReviewWhere },
           _count: { _all: true },
         }),
       ])
@@ -330,8 +382,12 @@ export const getPostBySlug = cache((slug: string) =>
 export const getPostSlugs = cache(() =>
   safe(
     'post-slugs',
-    () => db.post.findMany({ where: { status: 'PUBLISHED' }, select: { slug: true } }),
-    [] as { slug: string }[],
+    () =>
+      db.post.findMany({
+        where: { status: 'PUBLISHED' },
+        select: { slug: true, updatedAt: true },
+      }),
+    [] as { slug: string; updatedAt: Date }[],
   ),
 )
 
@@ -352,9 +408,9 @@ export const getHomeStats = cache(() =>
     'home-stats',
     async () => {
       const [projects, reviews] = await Promise.all([
-        db.project.count({ where: { status: 'PUBLISHED' } }),
+        db.project.count({ where: publicProjectWhere }),
         db.review.aggregate({
-          where: { status: 'APPROVED' },
+          where: { ...publicReviewWhere },
           _count: true,
           _avg: { rating: true },
         }),

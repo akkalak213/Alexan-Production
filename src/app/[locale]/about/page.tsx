@@ -3,12 +3,19 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
-import type { Locale } from '@/i18n/routing'
+import { localizedPath, type Locale } from '@/i18n/routing'
 import { pageMetadata } from '@/lib/seo'
 import { buttonClasses } from '@/components/ui/Button'
 import { Section } from '@/components/ui/Section'
 import { getSiteSettings } from '@/lib/settings'
 import { getTeamMembers } from '@/server/queries'
+import { JsonLd } from '@/components/JsonLd'
+import {
+  breadcrumbSchema,
+  organizationRef,
+  personSchema,
+  webPageSchema,
+} from '@/lib/structured-data'
 
 /**
  * เรนเดอร์ตอนมีคนขอ ไม่ prerender ตอน build
@@ -43,9 +50,10 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
   const { locale } = await params
   setRequestLocale(locale)
 
-  const [t, tc, team, settings] = await Promise.all([
+  const [t, tc, tNav, team, settings] = await Promise.all([
     getTranslations('about'),
     getTranslations('common'),
+    getTranslations('nav'),
     getTeamMembers(),
     getSiteSettings(),
   ])
@@ -76,6 +84,44 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
 
   return (
     <>
+      {/*
+        หน้าเกี่ยวกับเราเป็นหน้าที่เครื่องมือค้นหาใช้ตัดสินว่าเบื้องหลังเว็บนี้มีคนจริงหรือเปล่า
+        ประกาศทีมเป็น Person ที่ผูกกับกิจการ ทำให้คำตอบของ AI อ้างถึงคนได้ ไม่ใช่แค่ชื่อบริษัทลอย ๆ
+      */}
+      <JsonLd
+        data={{
+          ...webPageSchema({
+            type: 'AboutPage',
+            name: t('title'),
+            description: t('subtitle'),
+            path: '/about',
+            locale,
+          }),
+          ...(team.length
+            ? {
+                // ชี้กลับไปที่กิจการเดียวกับที่ layout ประกาศไว้ ไม่ประกาศข้อมูลบริษัทซ้ำ
+                mainEntity: {
+                  ...organizationRef,
+                  employee: team.map((member) =>
+                    personSchema({
+                      name: member.name,
+                      role: isThai ? member.roleTh : member.roleEn,
+                      bio: isThai ? member.bioTh : member.bioEn,
+                      photo: member.photo,
+                    }),
+                  ),
+                },
+              }
+            : {}),
+        }}
+      />
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: tNav('home'), path: localizedPath(locale) },
+          { name: tNav('about'), path: localizedPath(locale, '/about') },
+        ])}
+      />
+
       {/* ───────────── หัวเรื่อง พร้อมตัวเลขที่บอกขนาดของทีม ───────────── */}
       <section className="border-b border-border py-16 md:py-24">
         <div className="container">

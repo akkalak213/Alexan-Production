@@ -1,7 +1,7 @@
-import { Trash2 } from 'lucide-react'
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import { AdminPageHeader, EmptyState } from '@/components/admin/AdminPage'
+import { ConfirmIconSubmit } from '@/components/admin/AdminUI'
 import { CopyUrlButton } from '@/components/admin/CopyUrlButton'
 import { MediaUploader } from '@/components/admin/MediaUploader'
 import { db } from '@/lib/db'
@@ -69,13 +69,10 @@ export default async function AdminMediaPage() {
                   <CopyUrlButton url={asset.url} />
                   <form action={deleteMediaAsset}>
                     <input type="hidden" name="id" value={asset.id} />
-                    <button
-                      type="submit"
-                      aria-label={`ลบไฟล์ ${asset.fileName}`}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded bg-white/90 text-destructive"
-                    >
-                      <Trash2 size={13} strokeWidth={2} />
-                    </button>
+                    <ConfirmIconSubmit
+                      label={`ลบไฟล์ ${asset.fileName}`}
+                      confirmLabel={`ยืนยันลบไฟล์ ${asset.fileName}`}
+                    />
                   </form>
                 </div>
               </div>

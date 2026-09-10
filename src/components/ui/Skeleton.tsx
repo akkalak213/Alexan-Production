@@ -72,7 +72,7 @@ export function SkeletonPage({
   label,
   children,
 }: {
-  label: string
+  label: React.ReactNode
   children: React.ReactNode
 }) {
   return (
@@ -117,6 +117,32 @@ export function ListingSkeleton({
         </div>
       </section>
     </SkeletonPage>
+  )
+}
+
+/**
+ * หัวเรื่องของหน้า — บล็อก eyebrow + h1 สองบรรทัด + คำโปรย ที่หลายหน้าใช้ร่วมกัน
+ * ระยะห่างล้อของจริงทุกค่า เพราะถ้าเตี้ยกว่าหรือสูงกว่า เนื้อหาจะกระโดดตอนข้อมูลมาแทน
+ */
+export function PageHeaderSkeleton({
+  width = 'max-w-2xl',
+  bordered = false,
+}: {
+  width?: string
+  bordered?: boolean
+}) {
+  return (
+    <section className={cn('py-16 md:py-24', bordered && 'border-b border-border')}>
+      <div className="container">
+        <div className={width}>
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="mt-5 h-11 w-full md:h-14" />
+          <Skeleton className="mt-3 h-11 w-2/3 md:h-14" />
+          <Skeleton className="mt-6 h-5 w-full" />
+          <Skeleton className="mt-2 h-5 w-4/5" />
+        </div>
+      </div>
+    </section>
   )
 }
 

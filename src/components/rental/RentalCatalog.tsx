@@ -2,29 +2,42 @@
 
 import { FileText, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from '@/i18n/navigation'
 import { Button, buttonClasses } from '@/components/ui/Button'
 import { LeadForm } from '@/components/forms/LeadForm'
+import {
+  getSelectionServerSnapshot,
+  getSelectionSnapshot,
+  setSelection,
+  subscribeToSelection,
+} from '@/lib/rental-selection'
 import { scrollIntoViewSoftly } from '@/lib/scroll'
 import { EquipmentCard, type EquipmentCardData } from './EquipmentCard'
-import { EquipmentDetailDialog } from './EquipmentDetailDialog'
 
 export function RentalCatalog({ items }: { items: EquipmentCardData[] }) {
   const t = useTranslations('rental')
   const tEstimate = useTranslations('estimate')
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [openId, setOpenId] = useState<string | null>(null)
   const formRef = useRef<HTMLDivElement>(null)
 
+  /**
+   * รายการที่เลือกอยู่นอก React (ดู src/lib/rental-selection.ts) เพราะต้องอยู่รอดข้ามการเปลี่ยนหน้า
+   * useSyncExternalStore เป็นทางที่ React เตรียมไว้สำหรับค่าแบบนี้ที่มี SSR ด้วย
+   * มันเรนเดอร์ด้วยค่าฝั่งเซิร์ฟเวอร์ตอน hydrate แล้วค่อยสลับมาใช้ค่าจริงในเบราว์เซอร์ให้เอง
+   */
+  const selectedIds = useSyncExternalStore(
+    subscribeToSelection,
+    getSelectionSnapshot,
+    getSelectionServerSnapshot,
+  )
+
   const toggle = (id: string) =>
-    setSelectedIds((current) =>
-      current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
+    setSelection(
+      selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id],
     )
 
   const selected = items.filter((item) => selectedIds.includes(item.id))
-  const openItem = items.find((item) => item.id === openId) ?? null
 
   /**
    * ฟอร์มโผล่ต่อท้ายรายการอุปกรณ์ซึ่งมักยาวเกินหนึ่งหน้าจอ
@@ -33,13 +46,6 @@ export function RentalCatalog({ items }: { items: EquipmentCardData[] }) {
   useEffect(() => {
     if (isFormOpen) scrollIntoViewSoftly(formRef.current)
   }, [isFormOpen])
-
-  /** กดขอใบเสนอราคาจากในกล่องรายละเอียด — ติ๊กชิ้นนั้นให้ ปิดกล่อง แล้วพาลงไปที่ฟอร์ม */
-  const requestQuoteFor = (id: string) => {
-    setSelectedIds((current) => (current.includes(id) ? current : [...current, id]))
-    setOpenId(null)
-    setIsFormOpen(true)
-  }
 
   if (items.length === 0) {
     return (
@@ -58,19 +64,10 @@ export function RentalCatalog({ items }: { items: EquipmentCardData[] }) {
               item={item}
               isSelected={selectedIds.includes(item.id)}
               onToggle={toggle}
-              onOpen={setOpenId}
             />
           </li>
         ))}
       </ul>
-
-      <EquipmentDetailDialog
-        item={openItem}
-        isSelected={openItem ? selectedIds.includes(openItem.id) : false}
-        onToggle={toggle}
-        onRequestQuote={requestQuoteFor}
-        onClose={() => setOpenId(null)}
-      />
 
       {/*
         แถบสรุปลอยด้านล่าง โผล่เมื่อเลือกอุปกรณ์แล้ว
@@ -82,7 +79,7 @@ export function RentalCatalog({ items }: { items: EquipmentCardData[] }) {
             {t('selectedCount', { count: selected.length })}
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
+            <Button variant="ghost" size="sm" onClick={() => setSelection([])}>
               {t('clearSelection')}
             </Button>
             {/*

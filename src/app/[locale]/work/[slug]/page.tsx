@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
-import type { Locale } from '@/i18n/routing'
+import { localizedPath, type Locale } from '@/i18n/routing'
 import { pageMetadata } from '@/lib/seo'
 import { Badge } from '@/components/ui/Badge'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
@@ -15,8 +15,9 @@ import { MediaGallery, type GalleryItem } from '@/components/work/MediaGallery'
 import { ProjectCard } from '@/components/work/ProjectCard'
 import { VideoEmbed } from '@/components/work/VideoEmbed'
 import { JsonLd } from '@/components/JsonLd'
-import { parseVideoUrl, videoThumbnailUrl } from '@/lib/format'
-import { breadcrumbSchema, creativeWorkSchema } from '@/lib/structured-data'
+import { safeExternalUrl } from '@/lib/external-link'
+import { parseVideoUrl, videoEmbedUrl, videoThumbnailUrl } from '@/lib/format'
+import { breadcrumbSchema, creativeWorkSchema, videoObjectSchema } from '@/lib/structured-data'
 import { getProjectBySlug, getRelatedProjects } from '@/server/queries'
 
 /**
@@ -99,6 +100,14 @@ export default async function ProjectDetailPage({
   const credits = asCredits(isThai ? project.creditsTh : project.creditsEn)
 
   const video = parseVideoUrl(project.videoUrl)
+
+  /**
+   * สองลิงก์นี้แอดมินพิมพ์เข้ามาเอง ไม่ใช่ค่าที่เขียนไว้ในโค้ด
+   * ฟอร์มกันตั้งแต่ตอนบันทึกแล้ว แต่ระเบียนที่บันทึกไว้ก่อนหน้านั้นยังไม่เคยผ่านการตรวจ
+   * จึงต้องกรองตอนเรนเดอร์ด้วย ค่าที่ไม่ผ่านจะไม่ขึ้นเป็นปุ่มเลย ดีกว่าปุ่มที่กดแล้วรันสคริปต์
+   */
+  const liveUrl = safeExternalUrl(project.liveUrl)
+  const repoUrl = safeExternalUrl(project.repoUrl)
   const isVisualWork = project.category === 'PHOTOGRAPHY' || project.category === 'STUDIO'
   const isSoftwareWork =
     project.category === 'WEB' || project.category === 'WEB_APP' || project.category === 'MOBILE_APP'
@@ -130,11 +139,27 @@ export default async function ProjectDetailPage({
       />
       <JsonLd
         data={breadcrumbSchema([
-          { name: tNav('home'), path: `/${locale}` },
-          { name: tNav('work'), path: `/${locale}/work` },
-          { name: title, path: `/${locale}/work/${slug}` },
+          { name: tNav('home'), path: localizedPath(locale) },
+          { name: tNav('work'), path: localizedPath(locale, `/work`) },
+          { name: title, path: localizedPath(locale, `/work/${slug}`) },
         ])}
       />
+      {/*
+        VideoObject เป็นหนึ่งในไม่กี่ชนิดที่ยังได้ผลค้นหาแบบมีรูปตัวอย่างวิดีโอจริง
+        ผลงานที่ไม่มีรูปปกและไม่มีวันเผยแพร่จะคืน null แทนที่จะส่งข้อมูลไม่ครบออกไป
+        เพราะ Google ข้ามทั้งก้อนอยู่ดีถ้าขาด thumbnailUrl หรือ uploadDate
+      */}
+      {video && (
+        <JsonLd
+          data={videoObjectSchema({
+            name: title,
+            description: summary,
+            thumbnail: project.coverImage || videoThumbnailUrl(video),
+            embedUrl: videoEmbedUrl(video),
+            uploadDate: project.publishedAt ?? project.updatedAt,
+          })}
+        />
+      )}
 
       <section className="border-b border-border py-14 md:py-20">
         <div className="container">
@@ -171,11 +196,11 @@ export default async function ProjectDetailPage({
             </div>
           </dl>
 
-          {(project.liveUrl || project.repoUrl) && (
+          {(liveUrl || repoUrl) && (
             <div className="mt-8 flex flex-wrap gap-3">
-              {project.liveUrl && (
+              {liveUrl && (
                 <a
-                  href={project.liveUrl}
+                  href={liveUrl}
                   target="_blank"
                   rel="noreferrer noopener"
                   className={buttonClasses('primary', 'md')}
@@ -184,9 +209,9 @@ export default async function ProjectDetailPage({
                   <ExternalLink size={15} strokeWidth={1.75} aria-hidden />
                 </a>
               )}
-              {project.repoUrl && (
+              {repoUrl && (
                 <a
-                  href={project.repoUrl}
+                  href={repoUrl}
                   target="_blank"
                   rel="noreferrer noopener"
                   className={buttonClasses('outline', 'md')}

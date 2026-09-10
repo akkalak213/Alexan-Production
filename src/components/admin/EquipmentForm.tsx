@@ -4,7 +4,14 @@ import Link from 'next/link'
 import { useActionState } from 'react'
 import { EquipmentCategory, EquipmentStatus } from '@/generated/prisma/enums'
 import { AdminCard } from '@/components/admin/AdminPage'
-import { BilingualTabs, PairInput, SubmitButton, VersionField } from '@/components/admin/AdminUI'
+import { useActionToast } from '@/components/ui/Toast'
+import {
+  BilingualTabs,
+  ConfirmSubmitButton,
+  PairInput,
+  SubmitButton,
+  VersionField,
+} from '@/components/admin/AdminUI'
 import { ImageField, ImageListField } from '@/components/admin/ImageField'
 import { buttonClasses } from '@/components/ui/Button'
 import { Field, FormMessage, Input, Select, Textarea } from '@/components/ui/Form'
@@ -63,6 +70,8 @@ export const emptyEquipment: EquipmentFormData = {
 
 export function EquipmentForm({ item }: { item: EquipmentFormData }) {
   const [state, formAction] = useActionState(saveEquipment, initialAdminState)
+
+  useActionToast(state)
   const isEditing = Boolean(item.id)
 
   return (
@@ -245,9 +254,9 @@ export function EquipmentForm({ item }: { item: EquipmentFormData }) {
               ถ้าเคยมีลูกค้าขอเช่า ประวัติคำขอจะยังเก็บชื่ออุปกรณ์ไว้
             </p>
           </div>
-          <SubmitButton variant="outline" size="sm" pendingLabel="กำลังลบ">
+          <ConfirmSubmitButton variant="outline" size="sm" pendingLabel="กำลังลบ">
             ลบถาวร
-          </SubmitButton>
+          </ConfirmSubmitButton>
         </form>
       )}
     </div>

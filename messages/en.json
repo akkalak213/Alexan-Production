@@ -191,7 +191,16 @@
       "MAINTENANCE": "Being serviced",
       "RETIRED": "Retired"
     },
-    "studioDiscount": "Book the studio too and gear rental drops 20%"
+    "studioDiscount": "Book the studio too and gear rental drops 20%",
+    "detailMetaTitle": "Rent {name}",
+    "detailMetaDescription": "Rent {name}. Daily and weekly rates with full specifications. Inspected before every handover.",
+    "backToCatalog": "All equipment",
+    "relatedTitle": "Other gear in this category",
+    "requestFormTitle": "Request a quote for {name}",
+    "requestFormNote": "Tell us your shoot dates and location and we will check availability and reply the same day.",
+    "estimateThis": "Estimate this item",
+    "notFound": "Equipment not found",
+    "unavailableNote": "This item is currently unavailable. Ask us about upcoming dates."
   },
   "reviews": {
     "metaTitle": "Client reviews",
@@ -291,7 +300,8 @@
     "formTitle": "Send your project details",
     "directTitle": "Or reach us directly",
     "hoursTitle": "Opening hours",
-    "responseNote": "We read everything and reply within one business day. If it is urgent, calling is faster."
+    "responseNote": "We read everything and reply within one business day. If it is urgent, calling is faster.",
+    "lineIdNote": "LINE ID — copy it to search in the LINE app"
   },
   "forms": {
     "name": "Name",
@@ -329,7 +339,16 @@
     "fieldRequired": "Required",
     "sendAnother": "Send another",
     "selectedPackage": "Selected package",
-    "removePackage": "Remove"
+    "removePackage": "Remove",
+    "requiredNote": "Fields marked * are required. Other fields are optional.",
+    "messageHint": "Tell us about your project in 10–3,000 characters.",
+    "validation": {
+      "name": "Enter your name using 2–100 characters.",
+      "email": "Enter a valid email address, up to 160 characters.",
+      "phone": "Enter a Thai phone number, such as 0812345678 or +66812345678.",
+      "company": "Company name must be 120 characters or fewer.",
+      "message": "Enter 10–3,000 characters about your project."
+    }
   },
   "budget": {
     "under-50k": "Under 50,000",

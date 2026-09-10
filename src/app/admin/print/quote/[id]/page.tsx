@@ -1,11 +1,12 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { PrintButton } from '@/components/ui/PrintButton'
 import { bahtText } from '@/lib/baht-text'
 import { toNumber } from '@/lib/format'
 import { getAdminSettings, getQuote } from '@/server/admin-queries'
+import { getActiveUser } from '@/server/cms-helpers'
 
 export const metadata: Metadata = {
   title: 'ใบเสนอราคา',
@@ -21,6 +22,14 @@ const num = (value: unknown) => toNumber(value) ?? 0
 
 export default async function QuotePrintPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+
+  /**
+   * หน้านี้อยู่นอก (panel) จึงไม่ได้รับด่านของ layout นั้น
+   * middleware กันให้อยู่ชั้นหนึ่ง แต่ใบเสนอราคามีชื่อ ที่อยู่ และยอดเงินของลูกค้าอยู่เต็มหน้า
+   * จึงไม่ควรพึ่งด่านเดียว — ตรวจซ้ำตรงจุดที่ดึงข้อมูลจริงด้วย
+   */
+  if (!(await getActiveUser())) redirect('/admin/login')
+
   const [quote, settings] = await Promise.all([getQuote(id), getAdminSettings()])
   if (!quote) notFound()
 

@@ -1,7 +1,12 @@
 'use client'
 
 import { useActionState } from 'react'
-import { SubmitButton, VersionField } from '@/components/admin/AdminUI'
+import {
+  ConfirmSubmitButton,
+  SubmitButton,
+  VersionField,
+} from '@/components/admin/AdminUI'
+import { useActionToast } from '@/components/ui/Toast'
 import { ImageField } from '@/components/admin/ImageField'
 import { Field, FormMessage, Input, Textarea } from '@/components/ui/Form'
 import { initialAdminState } from '@/server/admin-state'
@@ -42,6 +47,8 @@ const socialFields = ['instagram', 'facebook', 'linkedin', 'github', 'website'] 
 
 export function TeamMemberForm({ member }: { member: TeamMemberFormData }) {
   const [state, formAction] = useActionState(saveTeamMember, initialAdminState)
+
+  useActionToast(state)
   const isEditing = Boolean(member.id)
 
   return (
@@ -137,9 +144,9 @@ export function TeamMemberForm({ member }: { member: TeamMemberFormData }) {
       {isEditing && (
         <form action={deleteTeamMember} className="mt-4 border-t border-border pt-4">
           <input type="hidden" name="id" value={member.id} />
-          <SubmitButton variant="ghost" size="sm" pendingLabel="กำลังลบ">
+          <ConfirmSubmitButton variant="ghost" size="sm" pendingLabel="กำลังลบ">
             ลบสมาชิกคนนี้
-          </SubmitButton>
+          </ConfirmSubmitButton>
         </form>
       )}
     </div>

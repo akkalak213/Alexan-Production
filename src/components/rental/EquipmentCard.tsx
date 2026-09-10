@@ -4,6 +4,8 @@ import { ArrowRight, Check, Plus } from 'lucide-react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import type { EquipmentCategory, EquipmentStatus } from '@/generated/prisma/enums'
+import { Link } from '@/i18n/navigation'
+import { equipmentBrand, equipmentName } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 export type EquipmentCardData = {
@@ -29,10 +31,9 @@ type Props = {
   item: EquipmentCardData
   isSelected: boolean
   onToggle: (id: string) => void
-  onOpen: (id: string) => void
 }
 
-export function EquipmentCard({ item, isSelected, onToggle, onOpen }: Props) {
+export function EquipmentCard({ item, isSelected, onToggle }: Props) {
   const t = useTranslations('rental')
   const isAvailable = item.status === 'AVAILABLE'
 
@@ -61,7 +62,11 @@ export function EquipmentCard({ item, isSelected, onToggle, onOpen }: Props) {
       </div>
 
       <div className="flex flex-1 flex-col p-5">
-        <p className="text-xs uppercase tracking-wider text-muted-foreground">{item.brand}</p>
+        {equipmentBrand(item.brand) && (
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+            {equipmentBrand(item.brand)}
+          </p>
+        )}
         <h3 className="mt-1 font-display text-xl text-balance transition-colors group-hover:text-accent">
           {item.model}
         </h3>
@@ -129,14 +134,19 @@ export function EquipmentCard({ item, isSelected, onToggle, onOpen }: Props) {
       {/*
         แผ่นกดคลุมทั้งการ์ด — ทำให้ทั้งใบเป็นพื้นที่กดได้โดยไม่ต้องซ้อนปุ่มในปุ่ม
         (ปุ่มซ้อนปุ่มเป็น HTML ที่ไม่ถูกต้อง และคีย์บอร์ดกับ screen reader จะสับสน)
+
+        เดิมเป็นปุ่มที่เปิดกล่องซ้อน เปลี่ยนเป็นลิงก์จริงไปหน้าของอุปกรณ์ชิ้นนั้น
+        ได้สามอย่างที่กล่องซ้อนให้ไม่ได้: Google มี URL ให้จัดอันดับ, ส่งลิงก์ให้ลูกค้าดูของชิ้นเดียวได้
+        และคลิกขวาเปิดแท็บใหม่เพื่อเทียบหลายชิ้นพร้อมกันได้
       */}
-      <button
-        type="button"
-        onClick={() => onOpen(item.id)}
+      <Link
+        href={`/rental/${item.slug}`}
         className="absolute inset-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
-        <span className="sr-only">{t('openDetails', { name: `${item.brand} ${item.model}` })}</span>
-      </button>
+        <span className="sr-only">
+          {t('openDetails', { name: equipmentName(item.brand, item.model) })}
+        </span>
+      </Link>
     </article>
   )
 }

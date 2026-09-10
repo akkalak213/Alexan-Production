@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next'
+import { SITE_NAME } from '@/lib/site'
 
 /**
  * web app manifest
@@ -12,11 +13,10 @@ export const dynamic = 'force-static'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Alexan Production',
+    name: SITE_NAME,
     short_name: 'Alexan',
     description: 'รับทำเว็บไซต์ ถ่ายภาพ ผลิตวิดีโอ และให้เช่าอุปกรณ์ ครบในทีมเดียว',
-    // เปิดที่ /th เพราะลูกค้าหลักเป็นคนไทย ไม่ใช่ / ซึ่งจะเด้งต่ออีกทอด
-    start_url: '/th',
+    start_url: '/',
     scope: '/',
     display: 'standalone',
     lang: 'th',

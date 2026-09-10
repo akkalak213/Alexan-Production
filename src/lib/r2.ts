@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { isR2Configured, serverEnv } from './env'
@@ -63,6 +63,38 @@ export function buildObjectKey(fileName: string, folder = 'uploads'): string {
 
 export function publicUrlFor(key: string): string {
   return `${serverEnv.R2_PUBLIC_URL!.replace(/\/$/, '')}/${key}`
+}
+
+/**
+ * ลายเซ็นของตั๋วอัปโหลด
+ *
+ * ขั้นตอนอัปโหลดแบ่งเป็นสองคำขอ ระหว่างนั้นข้อมูลตั๋ว (key, ชนิดไฟล์, ขนาด) ไปพักอยู่ที่เบราว์เซอร์
+ * ถ้าตอนบันทึกลงคลังเราเชื่อค่าที่ส่งกลับมาดื้อ ๆ ก็เท่ากับให้ผู้เรียกเขียนอะไรลงตาราง MediaAsset ก็ได้
+ * — รวมถึง url ที่ชี้ไปโดเมนอื่นทั้งที่ไม่เคยมีไฟล์ไหนถูกอัปโหลดจริง
+ *
+ * จึงเซ็นข้อมูลตั๋วด้วย AUTH_SECRET ตอนออกตั๋ว แล้วตรวจลายเซ็นตอนบันทึก
+ * ค่าที่บันทึกลงฐานข้อมูลจึงเป็นค่าชุดเดียวกับที่เซิร์ฟเวอร์อนุมัติไปเท่านั้น
+ */
+function ticketPayload(key: string, contentType: string, size: number): string {
+  return `${key}|${contentType}|${size}`
+}
+
+export function signUploadTicket(key: string, contentType: string, size: number): string {
+  return createHmac('sha256', serverEnv.AUTH_SECRET)
+    .update(ticketPayload(key, contentType, size))
+    .digest('hex')
+}
+
+export function verifyUploadTicket(
+  key: string,
+  contentType: string,
+  size: number,
+  token: string,
+): boolean {
+  const expected = signUploadTicket(key, contentType, size)
+  // เทียบแบบเวลาคงที่ ไม่ให้จับเวลาแล้วไล่เดาลายเซ็นทีละไบต์ได้
+  if (token.length !== expected.length) return false
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(token))
 }
 
 /** URL ที่เบราว์เซอร์เอาไปยิง PUT ได้โดยตรง มีอายุ 10 นาที */

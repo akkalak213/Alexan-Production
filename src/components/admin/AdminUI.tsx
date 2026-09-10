@@ -76,6 +76,95 @@ export function SubmitButton({
   )
 }
 
+/**
+ * ปุ่มทำลายข้อมูลที่ต้องกดสองจังหวะ
+ *
+ * ของเดิมเป็นปุ่ม submit ตรง ๆ กดพลาดครั้งเดียวข้อมูลหายถาวรพร้อมรูปทั้งชุด ไม่มีอะไรมาขวางเลย
+ * กดครั้งแรกจึงแค่ง้างปุ่มไว้ ต้องกดยืนยันอีกครั้งถึงจะส่งจริง
+ *
+ * ปุ่มยังเป็น type="submit" เหมือนเดิม การขวางทำด้วย preventDefault ฝั่ง client
+ * ถ้า JavaScript ยังโหลดไม่เสร็จ ปุ่มก็ทำงานแบบเดิมทุกประการ ไม่ได้กลายเป็นปุ่มตาย
+ *
+ * ตั้งใจใช้ปุ่มตัวเดิมทั้งสองสถานะ เปลี่ยนแค่ข้อความ ไม่ได้สลับเป็นปุ่มคนละตัว
+ * เพราะถ้าถอดปุ่มเดิมทิ้ง โฟกัสของคนที่ใช้คีย์บอร์ดจะตกไปที่ body แล้วหลงว่าอยู่ตรงไหน
+ */
+export function ConfirmSubmitButton({
+  children,
+  question = 'ลบแล้วกู้คืนไม่ได้ แน่ใจไหม',
+  confirmLabel = 'ยืนยันลบ',
+  pendingLabel = 'กำลังลบ',
+  variant = 'outline',
+  size = 'sm',
+}: {
+  children: ReactNode
+  question?: string
+  confirmLabel?: string
+  pendingLabel?: string
+  variant?: 'outline' | 'ghost'
+  size?: 'sm' | 'md'
+}) {
+  const [armed, setArmed] = useState(false)
+  const { pending } = useFormStatus()
+
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      {armed && !pending && (
+        <>
+          <span className="text-xs text-muted-foreground">{question}</span>
+          <Button type="button" variant="ghost" size={size} onClick={() => setArmed(false)}>
+            ยกเลิก
+          </Button>
+        </>
+      )}
+
+      <Button
+        type="submit"
+        variant={variant}
+        size={size}
+        disabled={pending}
+        className={armed ? 'border-destructive/50 text-destructive hover:bg-destructive/10' : undefined}
+        onClick={(event) => {
+          if (armed) return
+          event.preventDefault()
+          setArmed(true)
+        }}
+      >
+        {pending ? pendingLabel : armed ? confirmLabel : children}
+      </Button>
+    </div>
+  )
+}
+
+/**
+ * รุ่นย่อสำหรับปุ่มไอคอนในกริด เช่นปุ่มลบบนรูปในคลังสื่อ ซึ่งไม่มีที่ให้วางแถวคำถาม
+ * กดครั้งแรกปุ่มจะกางออกเป็นคำว่ายืนยัน กดที่อื่นหรือ tab ออกแล้วยุบกลับเอง
+ */
+export function ConfirmIconSubmit({ label, confirmLabel }: { label: string; confirmLabel: string }) {
+  const [armed, setArmed] = useState(false)
+  const { pending } = useFormStatus()
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      aria-label={armed ? confirmLabel : label}
+      title={armed ? confirmLabel : label}
+      onBlur={() => setArmed(false)}
+      onClick={(event) => {
+        if (armed) return
+        event.preventDefault()
+        setArmed(true)
+      }}
+      className={cn(
+        'inline-flex h-7 items-center justify-center rounded text-[0.7rem] font-medium transition-colors disabled:opacity-50',
+        armed ? 'gap-1 bg-destructive px-2 text-white' : 'w-7 bg-white/90 text-destructive',
+      )}
+    >
+      {armed ? 'ยืนยันลบ' : <Trash2 size={13} strokeWidth={2} aria-hidden />}
+    </button>
+  )
+}
+
 /** สลับกรอกไทย/อังกฤษในที่เดียว — input ทั้งสองภาษาอยู่ใน DOM เสมอ แค่ซ่อนอันที่ไม่ได้เลือก */
 export function BilingualTabs({
   th,

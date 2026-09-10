@@ -25,13 +25,13 @@
     --muted-foreground: 43 8% 39%;
 
     --border: 40 18% 88%;
-    --input: 40 18% 86%;
-    --ring: 22 64% 46%;
+    --input: 40 10% 52%;
+    --ring: 22 64% 40%;
 
     --primary: 48 19% 10%;
     --primary-foreground: 40 23% 98%;
 
-    --accent: 22 64% 46%;
+    --accent: 22 64% 40%;
     --accent-foreground: 0 0% 100%;
     /* พื้นอ่อนของ accent ใช้กับ badge และ highlight */
     --accent-subtle: 24 70% 95%;
@@ -58,7 +58,7 @@
     --muted-foreground: 40 8% 64%;
 
     --border: 240 6% 16%;
-    --input: 240 6% 20%;
+    --input: 240 6% 48%;
     --ring: 28 82% 67%;
 
     --primary: 43 27% 95%;
@@ -223,7 +223,7 @@
     --foreground: 43 27% 95%;
     --muted-foreground: 40 8% 62%;
     --border: 240 6% 18%;
-    --input: 240 6% 22%;
+    --input: 240 6% 50%;
     --subtle: 240 7% 11%;
     --surface: 240 7% 10%;
     --muted: 240 6% 15%;
@@ -396,6 +396,17 @@
         animation: scroll-progress linear both;
         animation-timeline: scroll(root block);
       }
+    }
+  }
+
+  /**
+   * ข้อความแจ้งผลลอยมุมจอ — ใช้ rise-in ตัวเดียวกับ hero จะได้เป็นภาษาการเคลื่อนไหวชุดเดียวกัน
+   * ระยะสั้นกว่าเพราะเป็นการตอบสนองต่อการกด ไม่ใช่การเปิดฉาก
+   * คนที่ตั้งค่าลดการเคลื่อนไหวไว้จะได้ข้อความที่โผล่มาเฉย ๆ ไม่มีการเลื่อน
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    .toast-in {
+      animation: rise-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
   }
 
@@ -778,4 +789,23 @@
     background: white;
     color: black;
   }
+}
+
+/* Public hero: compact typography without changing headings on other pages. */
+@layer components {
+  .hero-title { font-size: clamp(2.25rem, 7vw + .5rem, 2.75rem); line-height: 1.1; overflow-wrap: anywhere; }
+  .hero-title:lang(th) { line-height: 1.35; }
+  @media (min-width: 768px) { .hero-title { font-size: 3.25rem; } }
+  @media (min-width: 1024px) { .hero-title { font-size: 4.5rem; } }
+  .hero-stage > * { animation: rise-in 350ms cubic-bezier(.16,1,.3,1) both; }
+  .hero-stage > :nth-child(2) { animation-delay: 60ms; }
+  .hero-stage > :nth-child(3) { animation-delay: 120ms; }
+  .hero-stage > :nth-child(4) { animation-delay: 180ms; }
+  .mobile-dialog::backdrop { background: hsl(var(--background) / .9); }
+  .mobile-dialog[open] { animation: rise-in 160ms ease-out; }
+  /* Decorative loops are static; no pause control is needed. */
+  .studio-scene *, .marquee-track, .keylight { animation: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-stage > *, .mobile-dialog[open] { animation: none !important; }
 }

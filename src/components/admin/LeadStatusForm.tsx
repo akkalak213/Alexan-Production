@@ -3,6 +3,7 @@
 import { useActionState, useRef } from 'react'
 import { LeadStatus } from '@/generated/prisma/enums'
 import { Select } from '@/components/ui/Form'
+import { useActionToast } from '@/components/ui/Toast'
 import { leadStatusLabels } from '@/lib/admin-labels'
 import { initialAdminState } from '@/server/admin-state'
 import { updateLeadStatus } from '@/server/admin-actions'
@@ -18,6 +19,8 @@ export function LeadStatusForm({
 }) {
   const formRef = useRef<HTMLFormElement>(null)
   const [state, formAction, isPending] = useActionState(updateLeadStatus, initialAdminState)
+
+  useActionToast(state)
 
   return (
     <form ref={formRef} action={formAction} className="flex flex-col gap-1.5">

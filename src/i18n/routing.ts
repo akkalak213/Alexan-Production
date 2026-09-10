@@ -11,6 +11,12 @@ export const localeLabels: Record<Locale, { short: string; full: string }> = {
 export const routing = defineRouting({
   locales,
   defaultLocale: 'th',
-  // เขียน prefix ทุกภาษาเสมอ (/th, /en) เพื่อให้ URL คาดเดาได้และแคชได้ตรงไปตรงมา
-  localePrefix: 'always',
+  // Thai lives at the root; English uses /en. Legacy /th URLs redirect automatically.
+  localePrefix: 'as-needed',
+  localeDetection: false,
 })
+
+export function localizedPath(locale: Locale, path = ''): string {
+  const suffix = path === '/' ? '' : path
+  return `${locale === routing.defaultLocale ? '' : `/${locale}`}${suffix}` || '/'
+}

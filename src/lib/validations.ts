@@ -1,6 +1,9 @@
 import { z } from 'zod'
 import { ServiceCategory } from '@/generated/prisma/enums'
 
+// ปล่อยต่อให้โค้ดเดิมที่เคย import จากไฟล์นี้ยังใช้ได้เหมือนเดิม
+export { budgetRangeFor, budgetRanges, type BudgetRange } from './lead-options'
+
 /**
  * schema กลางสำหรับฟอร์มสาธารณะ
  * ใช้ทั้งฝั่ง client (แสดง error ทันที) และฝั่ง server action (ห้ามเชื่อ client)
@@ -62,24 +65,3 @@ export const leadSchema = z.object({
 
 export type LeadInput = z.infer<typeof leadSchema>
 
-export const budgetRanges = [
-  'under-50k',
-  '50k-150k',
-  '150k-500k',
-  'over-500k',
-  'not-sure',
-] as const
-
-export type BudgetRange = (typeof budgetRanges)[number]
-
-/**
- * จับราคาแพ็กเกจเข้าช่วงงบประมาณ ใช้เติมช่องงบให้อัตโนมัติเมื่อลูกค้ากดเลือกแพ็กเกจ
- * ราคาแพ็กเกจเป็นราคาเริ่มต้น งานจริงมักบานปลายขึ้น จึงเลือกช่วงที่ครอบราคานั้นไว้
- */
-export function budgetRangeFor(price: number | null): BudgetRange | null {
-  if (price === null) return null
-  if (price < 50_000) return 'under-50k'
-  if (price < 150_000) return '50k-150k'
-  if (price < 500_000) return '150k-500k'
-  return 'over-500k'
-}

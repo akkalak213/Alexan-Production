@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/Button'
+import { useActionToast } from '@/components/ui/Toast'
 import { Textarea } from '@/components/ui/Form'
 import { initialAdminState } from '@/server/admin-state'
 import { addLeadNote } from '@/server/admin-actions'
@@ -9,6 +10,8 @@ import { addLeadNote } from '@/server/admin-actions'
 export function LeadNoteForm({ leadId }: { leadId: string }) {
   const formRef = useRef<HTMLFormElement>(null)
   const [state, formAction, isPending] = useActionState(addLeadNote, initialAdminState)
+
+  useActionToast(state)
 
   // ล้างช่องหลังบันทึกสำเร็จ เพื่อให้พิมพ์โน้ตถัดไปได้เลย
   useEffect(() => {

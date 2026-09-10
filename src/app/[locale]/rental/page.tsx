@@ -3,14 +3,20 @@ import type { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { EquipmentCategory } from '@/generated/prisma/enums'
 import { Link } from '@/i18n/navigation'
-import type { Locale } from '@/i18n/routing'
+import { localizedPath, type Locale } from '@/i18n/routing'
 import { pageMetadata } from '@/lib/seo'
 import type { EquipmentCardData } from '@/components/rental/EquipmentCard'
 import { RentalCatalog } from '@/components/rental/RentalCatalog'
 import { Section } from '@/components/ui/Section'
-import { formatPrice } from '@/lib/format'
+import { equipmentName, formatPrice, toNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { getEquipment, getEquipmentCountsByCategory } from '@/server/queries'
+import { JsonLd } from '@/components/JsonLd'
+import {
+  breadcrumbSchema,
+  collectionPageSchema,
+  equipmentProductSchema,
+} from '@/lib/structured-data'
 
 const categories = Object.values(EquipmentCategory)
 
@@ -56,9 +62,10 @@ export default async function RentalPage({
 
   const active = parseCategory(category)
 
-  const [t, tCat, equipment, counts] = await Promise.all([
+  const [t, tCat, tNav, equipment, counts] = await Promise.all([
     getTranslations('rental'),
     getTranslations('equipmentCategory'),
+    getTranslations('nav'),
     getEquipment(active),
     getEquipmentCountsByCategory(),
   ])
@@ -85,7 +92,71 @@ export default async function RentalPage({
     status: item.status,
   }))
 
+  /**
+   * รายการอุปกรณ์แบบ Product พร้อมราคาต่อวัน
+   *
+   * เป็นชนิดข้อมูลที่ยังได้ผลค้นหาแบบมีราคาจริง ต่างจากรีวิวของตัวเองที่ Google ไม่แสดงดาวให้
+   * คนที่พิมพ์หา "เช่า <ยี่ห้อ> <รุ่น> ราคา" คือคนที่ตั้งใจจะเช่า — การมีราคาติดอยู่ในผลค้นหา
+   * มีค่ากว่าการอยู่อันดับสูงแต่ไม่มีใครกดเข้ามา
+   *
+   * ประกาศเฉพาะตอนไม่ได้กรอง ด้วยเหตุผลเดียวกับหน้าผลงาน: canonical ของหน้าที่กรองแล้ว
+   * ชี้กลับมาที่ /rental การส่งรายการคนละชุดออกไปคือการบอกว่าหน้าเดียวกันมีของไม่ตรงกัน
+   */
+  const productList = equipment.map((item) => ({
+    /**
+     * ชื่อสินค้าคือ "ยี่ห้อ + รุ่น" ตัวเดียวกับที่หน้ารายละเอียดใช้ ไม่ใช่ชื่อเรียกภาษาไทย
+     * เพราะคนพิมพ์หาด้วยยี่ห้อกับรุ่น และสองหน้าต้องบอกชื่อสินค้าตรงกัน
+     * ไม่งั้น Google จะเห็นเป็นสินค้าคนละตัวที่ราคาบังเอิญเท่ากัน
+     */
+    name: equipmentName(item.brand, item.model),
+    schema: equipmentProductSchema({
+      name: equipmentName(item.brand, item.model),
+      description: isThai ? item.descriptionTh : item.descriptionEn,
+      brand: item.brand,
+      model: item.model,
+      image: item.image,
+      dailyRate: toNumber(item.dailyRate),
+      isAvailable: item.status === 'AVAILABLE',
+      locale,
+      // ชี้ไปที่หน้าของชิ้นนั้นโดยตรง ไม่ใช่หน้ารวมที่กำลังเรนเดอร์อยู่
+      path: `/rental/${item.slug}`,
+    }),
+  }))
+
   return (
+    <>
+      {!active && (
+        <>
+          <JsonLd
+            data={{
+              ...collectionPageSchema({
+                name: t('title'),
+                description: t('subtitle'),
+                path: '/rental',
+                locale,
+                items: productList.map((item) => ({ name: item.name })),
+              }),
+              // แทนรายการชื่อเปล่า ๆ ด้วยตัวสินค้าจริงที่มีราคาและสถานะว่าง
+              mainEntity: {
+                '@type': 'ItemList',
+                numberOfItems: productList.length,
+                itemListElement: productList.map((item, index) => ({
+                  '@type': 'ListItem',
+                  position: index + 1,
+                  item: item.schema,
+                })),
+              },
+            }}
+          />
+          <JsonLd
+            data={breadcrumbSchema([
+              { name: tNav('home'), path: localizedPath(locale) },
+              { name: tNav('rental'), path: localizedPath(locale, '/rental') },
+            ])}
+          />
+        </>
+      )}
+
     <Section eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')}>
       <nav aria-label={t('filterLabel')} className="mb-8">
         <ul className="flex flex-wrap gap-2">
@@ -138,5 +209,6 @@ export default async function RentalPage({
 
       <RentalCatalog items={items} />
     </Section>
+    </>
   )
 }

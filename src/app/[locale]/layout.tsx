@@ -8,8 +8,10 @@ import { JsonLd } from '@/components/JsonLd'
 import { Providers } from '@/components/Providers'
 import { SiteFooter } from '@/components/layout/SiteFooter'
 import { SiteHeader } from '@/components/layout/SiteHeader'
+import { ServiceCategory } from '@/generated/prisma/enums'
 import { routing, type Locale } from '@/i18n/routing'
 import { clientEnv } from '@/lib/env'
+import { getNonce } from '@/lib/nonce'
 import { ogImageUrl } from '@/lib/og'
 import { pageMetadata } from '@/lib/seo'
 import { getSiteSettings } from '@/lib/settings'
@@ -74,6 +76,16 @@ const fontVariables = [
   jetbrainsMono.variable,
 ].join(' ')
 
+/** เรียงตามลำดับที่อยากให้อ่าน ไม่ใช่ลำดับใน enum — งานดิจิทัลก่อน งานภาพทีหลัง */
+const serviceCategories = [
+  ServiceCategory.WEB,
+  ServiceCategory.WEB_APP,
+  ServiceCategory.MOBILE_APP,
+  ServiceCategory.PHOTOGRAPHY,
+  ServiceCategory.VIDEO,
+  ServiceCategory.STUDIO,
+] as const
+
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }))
 }
@@ -130,6 +142,9 @@ export async function generateMetadata({
       googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 },
     },
     formatDetection: { telephone: false },
+    ...(clientEnv.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+      ? { verification: { google: clientEnv.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } }
+      : {}),
   }
 }
 
@@ -144,10 +159,15 @@ export default async function LocaleLayout({
   if (!hasLocale(routing.locales, locale)) notFound()
 
   setRequestLocale(locale)
-  const [t, settings] = await Promise.all([
+  const [t, tCategory, settings, nonce] = await Promise.all([
     getTranslations({ locale, namespace: 'common' }),
+    getTranslations({ locale, namespace: 'serviceCategory' }),
     getSiteSettings(),
+    getNonce(),
   ])
+
+  // ชื่อบริการภาษาเดียวกับที่คนเห็นบนเมนู ไม่ใช่รายการที่ฮาร์ดโค้ดแยกไว้ใน JSON-LD
+  const serviceNames = serviceCategories.map((category) => tCategory(category))
 
   return (
     <html lang={locale} suppressHydrationWarning className={fontVariables}>
@@ -156,7 +176,7 @@ export default async function LocaleLayout({
         <div aria-hidden className="scroll-progress no-print" />
 
         <NextIntlClientProvider>
-          <Providers>
+          <Providers nonce={nonce}>
             <a
               href="#main"
               className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-foreground focus:px-4 focus:py-2 focus:text-background"
@@ -172,10 +192,10 @@ export default async function LocaleLayout({
         </NextIntlClientProvider>
 
         {/* ประกาศตัวตนธุรกิจให้ Google ครั้งเดียวที่ layout ทุกหน้าได้รับผลเหมือนกัน */}
-        <JsonLd data={organizationSchema(settings, locale)} />
+        <JsonLd data={organizationSchema(settings, locale, serviceNames)} />
         <JsonLd data={websiteSchema(settings, locale)} />
 
-        <Analytics />
+        <Analytics nonce={nonce} />
       </body>
     </html>
   )

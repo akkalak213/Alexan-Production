@@ -3,12 +3,14 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
-import type { Locale } from '@/i18n/routing'
+import { localizedPath, type Locale } from '@/i18n/routing'
 import { pageMetadata } from '@/lib/seo'
 import { Badge } from '@/components/ui/Badge'
 import { Section } from '@/components/ui/Section'
 import { formatDate } from '@/lib/format'
 import { getPosts } from '@/server/queries'
+import { JsonLd } from '@/components/JsonLd'
+import { breadcrumbSchema, collectionPageSchema } from '@/lib/structured-data'
 
 /**
  * เรนเดอร์ตอนมีคนขอ ไม่ prerender ตอน build
@@ -44,10 +46,34 @@ export default async function BlogPage({ params }: { params: Promise<{ locale: L
   const { locale } = await params
   setRequestLocale(locale)
 
-  const [t, posts] = await Promise.all([getTranslations('blog'), getPosts()])
+  const [t, tNav, posts] = await Promise.all([
+    getTranslations('blog'),
+    getTranslations('nav'),
+    getPosts(),
+  ])
   const isThai = locale === 'th'
 
   return (
+    <>
+      <JsonLd
+        data={collectionPageSchema({
+          name: t('title'),
+          description: t('subtitle'),
+          path: '/blog',
+          locale,
+          items: posts.map((post) => ({
+            name: isThai ? post.titleTh : post.titleEn,
+            path: `/blog/${post.slug}`,
+          })),
+        })}
+      />
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: tNav('home'), path: localizedPath(locale) },
+          { name: tNav('blog'), path: localizedPath(locale, '/blog') },
+        ])}
+      />
+
     <Section eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')}>
       {posts.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border py-20 text-center text-sm text-muted-foreground">
@@ -114,5 +140,6 @@ export default async function BlogPage({ params }: { params: Promise<{ locale: L
         </ul>
       )}
     </Section>
+    </>
   )
 }

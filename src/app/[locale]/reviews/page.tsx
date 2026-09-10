@@ -1,7 +1,7 @@
 import { MessageSquareQuote, Users } from 'lucide-react'
 import type { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
-import type { Locale } from '@/i18n/routing'
+import { localizedPath, type Locale } from '@/i18n/routing'
 import { pageMetadata } from '@/lib/seo'
 import { ReviewCard } from '@/components/reviews/ReviewCard'
 import { ReviewForm } from '@/components/reviews/ReviewForm'
@@ -9,7 +9,12 @@ import { RatingStars } from '@/components/ui/RatingStars'
 import { Section } from '@/components/ui/Section'
 import { JsonLd } from '@/components/JsonLd'
 import { formatNumber } from '@/lib/format'
-import { aggregateRatingSchema } from '@/lib/structured-data'
+import {
+  aggregateRatingSchema,
+  breadcrumbSchema,
+  collectionPageSchema,
+  reviewSchema,
+} from '@/lib/structured-data'
 import { getApprovedReviews, getReviewStats } from '@/server/queries'
 
 /**
@@ -46,16 +51,51 @@ export default async function ReviewsPage({ params }: { params: Promise<{ locale
   const { locale } = await params
   setRequestLocale(locale)
 
-  const [t, reviews, stats] = await Promise.all([
+  const [t, tNav, reviews, stats] = await Promise.all([
     getTranslations('reviews'),
+    getTranslations('nav'),
     getApprovedReviews(),
     getReviewStats(),
   ])
 
   return (
     <>
-      {/* ทำให้ผลค้นหา Google แสดงดาวใต้ชื่อเว็บ */}
+      {/*
+        Google จะไม่แสดงดาวจากรีวิวชุดนี้ในผลค้นหา
+        รีวิวที่ธุรกิจเก็บไว้ในเว็บตัวเองถูกจัดเป็น self-serving review
+        และถูกตัดสิทธิ์ rich result มาตั้งแต่ปี 2019 — คอมเมนต์เดิมตรงนี้เข้าใจผิด
+
+        ที่ยังประกาศไว้เพราะเครื่องมือค้นหาแบบ AI อ่าน JSON-LD ตรง ๆ เพื่อสรุปคำตอบ
+        เวลามีคนถามว่า "เจ้าไหนดี" ข้อความรีวิวจริงพร้อมชื่อผู้รีวิวคือสิ่งที่มันหยิบไปใช้ได้
+        ต่างจากตัวเลขเฉลี่ยลอย ๆ ที่ไม่มีอะไรรองรับ
+      */}
       <JsonLd data={aggregateRatingSchema(stats.average, stats.total)} />
+      <JsonLd
+        data={{
+          ...collectionPageSchema({
+            name: t('title'),
+            description: t('subtitle'),
+            path: '/reviews',
+            locale,
+            items: reviews.map((review) => ({ name: review.authorName })),
+          }),
+          mainEntity: {
+            '@type': 'ItemList',
+            numberOfItems: reviews.length,
+            itemListElement: reviews.map((review, index) => ({
+              '@type': 'ListItem',
+              position: index + 1,
+              item: reviewSchema(review),
+            })),
+          },
+        }}
+      />
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: tNav('home'), path: localizedPath(locale) },
+          { name: tNav('reviews'), path: localizedPath(locale, '/reviews') },
+        ])}
+      />
 
       <Section eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')}>
         {stats.total > 0 && (

@@ -4,8 +4,10 @@ import Link from 'next/link'
 import { useActionState } from 'react'
 import { ContentStatus } from '@/generated/prisma/enums'
 import { AdminCard } from '@/components/admin/AdminPage'
+import { useActionToast } from '@/components/ui/Toast'
 import {
   BilingualTabs,
+  ConfirmSubmitButton,
   RepeatableInput,
   SubmitButton,
   VersionField,
@@ -52,6 +54,8 @@ export const emptyPost: PostFormData = {
 
 export function PostForm({ post }: { post: PostFormData }) {
   const [state, formAction] = useActionState(savePost, initialAdminState)
+
+  useActionToast(state)
   const isEditing = Boolean(post.id)
 
   return (
@@ -151,9 +155,9 @@ export function PostForm({ post }: { post: PostFormData }) {
         >
           <input type="hidden" name="id" value={post.id} />
           <p className="text-sm font-medium">ลบบทความนี้</p>
-          <SubmitButton variant="outline" size="sm" pendingLabel="กำลังลบ">
+          <ConfirmSubmitButton variant="outline" size="sm" pendingLabel="กำลังลบ">
             ลบถาวร
-          </SubmitButton>
+          </ConfirmSubmitButton>
         </form>
       )}
     </div>

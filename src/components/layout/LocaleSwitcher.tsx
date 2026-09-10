@@ -193,7 +193,7 @@ export function LocaleSwitcher({ className }: { className?: string }) {
       //
       // scroll: false สำคัญมาก — ค่าเริ่มต้นของ Next คือดีดกลับไปหัวหน้าทุกครั้งที่เปลี่ยน route
       // คนที่อ่านอยู่กลางหน้าแล้วกดสลับภาษาจะเสียตำแหน่งที่อ่านค้างไว้ทันที
-      router.replace(pathname, { locale: next, scroll: false })
+      router.replace(`${pathname}${window.location.search}${window.location.hash}`, { locale: next, scroll: false })
     })
   }
 
@@ -201,6 +201,7 @@ export function LocaleSwitcher({ className }: { className?: string }) {
     <div
       role="group"
       aria-label={t('switch')}
+      aria-busy={isPending}
       className={cn(
         'inline-flex items-center rounded-md border border-border p-0.5',
         isPending && 'opacity-60',
@@ -214,11 +215,12 @@ export function LocaleSwitcher({ className }: { className?: string }) {
             key={locale}
             type="button"
             onClick={() => switchTo(locale)}
+            disabled={isPending}
             aria-current={isActive ? 'true' : undefined}
             className={cn(
               // ล็อกความกว้างไว้เท่ากันทั้งสองปุ่ม ("ไทย" กับ "EN" กว้างไม่เท่ากัน)
               // ไม่งั้นตอนสลับภาษา ฟอนต์เปลี่ยน ความกว้างปุ่มเปลี่ยน แล้วดันของใน header ทั้งแถว
-              'w-9 rounded-[5px] py-1 text-center text-xs font-medium transition-colors',
+              'min-h-11 min-w-11 rounded-[5px] py-1 text-center text-sm font-medium transition-colors',
               isActive
                 ? 'bg-foreground text-background'
                 : 'text-muted-foreground hover:text-foreground',

@@ -3,6 +3,8 @@ import { IBM_Plex_Sans_Thai, Inter, Instrument_Serif } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getMessages } from 'next-intl/server'
 import { Providers } from '@/components/Providers'
+import { ToastProvider } from '@/components/ui/Toast'
+import { getNonce } from '@/lib/nonce'
 import '../globals.css'
 
 /**
@@ -35,7 +37,7 @@ export const metadata: Metadata = {
 export default async function AdminRootLayout({ children }: { children: React.ReactNode }) {
   // หลังบ้านล็อกภาษาไทย แต่ยังต้องมี provider เพราะคอมโพเนนต์ที่ใช้ร่วมกับหน้าเว็บ
   // (เช่น ปุ่มสลับธีม) อ่านข้อความจาก next-intl
-  const messages = await getMessages({ locale: 'th' })
+  const [messages, nonce] = await Promise.all([getMessages({ locale: 'th' }), getNonce()])
 
   return (
     <html
@@ -45,7 +47,9 @@ export default async function AdminRootLayout({ children }: { children: React.Re
     >
       <body className="min-h-dvh bg-background font-sans text-foreground antialiased">
         <NextIntlClientProvider locale="th" messages={messages}>
-          <Providers>{children}</Providers>
+          <Providers nonce={nonce}>
+            <ToastProvider>{children}</ToastProvider>
+          </Providers>
         </NextIntlClientProvider>
       </body>
     </html>

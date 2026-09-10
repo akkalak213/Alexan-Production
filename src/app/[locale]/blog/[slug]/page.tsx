@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
-import type { Locale } from '@/i18n/routing'
+import { localizedPath, type Locale } from '@/i18n/routing'
 import { pageMetadata } from '@/lib/seo'
 import { Badge } from '@/components/ui/Badge'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
@@ -92,9 +92,9 @@ export default async function PostDetailPage({
       />
       <JsonLd
         data={breadcrumbSchema([
-          { name: tNav('home'), path: `/${locale}` },
-          { name: tNav('blog'), path: `/${locale}/blog` },
-          { name: title, path: `/${locale}/blog/${slug}` },
+          { name: tNav('home'), path: localizedPath(locale) },
+          { name: tNav('blog'), path: localizedPath(locale, `/blog`) },
+          { name: title, path: localizedPath(locale, `/blog/${slug}`) },
         ])}
       />
 

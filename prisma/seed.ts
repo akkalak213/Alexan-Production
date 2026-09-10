@@ -28,7 +28,7 @@ const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) })
 const img = (seed: string, w = 1600, h = 1000) => `https://picsum.photos/seed/${seed}/${w}/${h}`
 
 async function seedAdmin() {
-  const email = process.env.SEED_ADMIN_EMAIL ?? 'admin@alexanprod.studio'
+  const email = process.env.SEED_ADMIN_EMAIL ?? 'admin@alexan.studio'
   const password = process.env.SEED_ADMIN_PASSWORD
 
   if (!password) {

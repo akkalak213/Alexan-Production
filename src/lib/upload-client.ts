@@ -82,13 +82,16 @@ export async function uploadImage(file: File, folder = 'uploads'): Promise<Uploa
     return { ok: false, error: 'อัปโหลดไม่สำเร็จ — ตรวจว่า bucket อนุญาต PUT จากโดเมนนี้แล้ว' }
   }
 
+  /**
+   * ไม่ส่ง url และ folder กลับไป — เซิร์ฟเวอร์คำนวณเองจาก key ที่เซ็นไว้
+   * ค่าที่ผ่านเบราว์เซอร์มาแล้วไม่ควรกลายเป็นค่าที่เชื่อได้อีกฝั่ง
+   */
   await confirmUpload({
     key: ticket.key,
-    url: ticket.publicUrl,
+    token: ticket.token,
     fileName: file.name,
     mimeType: file.type,
     size: file.size,
-    folder,
     ...meta,
   })
 

@@ -5,7 +5,11 @@ import Link from 'next/link'
 import { useActionState, useMemo, useState } from 'react'
 import { QuoteStatus } from '@/generated/prisma/enums'
 import { AdminCard } from '@/components/admin/AdminPage'
-import { SubmitButton } from '@/components/admin/AdminUI'
+import { useActionToast } from '@/components/ui/Toast'
+import {
+  ConfirmSubmitButton,
+  SubmitButton,
+} from '@/components/admin/AdminUI'
 import { buttonClasses } from '@/components/ui/Button'
 import { Field, FormMessage, Input, Select, Textarea } from '@/components/ui/Form'
 import { quoteStatusLabels } from '@/lib/admin-labels'
@@ -49,6 +53,8 @@ const money = new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximum
 
 export function QuoteForm({ quote }: { quote: QuoteFormData }) {
   const [state, formAction] = useActionState(saveQuote, initialAdminState)
+
+  useActionToast(state)
   const [lines, setLines] = useState<QuoteLineRow[]>(quote.items.length ? quote.items : [blankLine])
   const [discount, setDiscount] = useState(quote.discount)
   const [vatRate, setVatRate] = useState(quote.vatRate)
@@ -321,9 +327,9 @@ export function QuoteForm({ quote }: { quote: QuoteFormData }) {
             <p className="text-sm font-medium">ลบใบเสนอราคา {quote.quoteNumber}</p>
             <p className="text-xs text-muted-foreground">ลบแล้วเลขที่นี้จะไม่ถูกนำกลับมาใช้ซ้ำ</p>
           </div>
-          <SubmitButton variant="outline" size="sm" pendingLabel="กำลังลบ">
+          <ConfirmSubmitButton variant="outline" size="sm" pendingLabel="กำลังลบ">
             ลบถาวร
-          </SubmitButton>
+          </ConfirmSubmitButton>
         </form>
       )}
     </div>

@@ -9,7 +9,16 @@ import { serverEnv } from './env'
 
 const createPrismaClient = () =>
   new PrismaClient({
-    adapter: new PrismaPg({ connectionString: serverEnv.DATABASE_URL }),
+    adapter: new PrismaPg({
+      connectionString: serverEnv.DATABASE_URL,
+      max: 10,
+      connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 30_000,
+      statement_timeout: 15_000,
+      query_timeout: 20_000,
+      keepAlive: true,
+      application_name: 'alexan-production',
+    }),
     log: serverEnv.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   })
 
