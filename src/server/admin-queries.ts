@@ -1,5 +1,6 @@
 import { cache } from 'react'
 import type { LeadStatus, ReviewStatus } from '@/generated/prisma/enums'
+import { startOfBangkokMonth } from '@/lib/bangkok-time'
 import { db } from '@/lib/db'
 
 /**
@@ -19,9 +20,8 @@ export const getAdminCounts = cache(async () => {
 })
 
 export const getDashboardData = cache(async () => {
-  const startOfMonth = new Date()
-  startOfMonth.setDate(1)
-  startOfMonth.setHours(0, 0, 0, 0)
+  // ต้นเดือนตามเวลาไทย เซิร์ฟเวอร์ใช้ UTC ซึ่งช้ากว่าเจ็ดชั่วโมง
+  const startOfMonth = startOfBangkokMonth()
 
   const [
     leadsNew,

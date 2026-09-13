@@ -7,6 +7,7 @@ import { QuoteForm } from '@/components/admin/QuoteForm'
 import { isMailConfigured } from '@/lib/env'
 import { toNumber } from '@/lib/format'
 import { getQuote } from '@/server/admin-queries'
+import { versionOf } from '@/server/cms-helpers'
 
 export const metadata: Metadata = { title: 'แก้ไขใบเสนอราคา' }
 
@@ -59,6 +60,7 @@ export default async function EditQuotePage({ params }: { params: Promise<{ id: 
           leadId: quote.leadId ?? '',
           leadRefCode: quote.lead?.refCode ?? '',
           quoteNumber: quote.quoteNumber,
+          version: versionOf(quote.updatedAt),
           customerName: quote.customerName,
           customerCompany: quote.customerCompany ?? '',
           customerAddress: quote.customerAddress ?? '',

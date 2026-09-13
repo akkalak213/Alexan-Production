@@ -6,6 +6,63 @@ export type UploadResult =
   | { ok: true; url: string; width?: number; height?: number; blurData?: string }
   | { ok: false; error: string }
 
+/** ด้านยาวสุดของภาพที่เก็บจริง — คมพอสำหรับภาพเต็มจอบนจอความละเอียดสูง */
+const MAX_EDGE = 2560
+/** ภาพที่เล็กกว่านี้และไม่เกินขนาดข้างบน ส่งขึ้นตามเดิมไม่ต้องแปลง */
+const KEEP_BELOW_BYTES = 600 * 1024
+/** ชนิดที่แปลงได้โดยไม่เสียอะไร GIF ไม่แปลงเพราะภาพเคลื่อนไหวจะหาย AVIF เล็กอยู่แล้ว */
+const REENCODABLE = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+/**
+ * ย่อภาพก่อนอัปโหลด
+ *
+ * ภาพจากกล้องมักกว้างราว 6000px และหนักหลาย MB
+ * ตัวย่อรูปของ Next ต้องถอดรหัสไฟล์เต็มทุกครั้งที่ย่อขนาดใหม่ บนเซิร์ฟเวอร์ขนาดเล็กภาพแบบนี้ใช้เวลาหลายวินาที
+ * บางครั้งเกินเจ็ดวินาทีจนหมดเวลา ผู้เข้าชมเห็นกรอบเปล่า
+ * ย่อฝั่งเบราว์เซอร์เหลือด้านยาว 2560px เป็น WebP คุณภาพสูง ไฟล์เล็กลงหลายเท่าและยังคมพอสำหรับทุกจอ
+ *
+ * แปลงแล้วไฟล์ใหญ่กว่าเดิม หรือเบราว์เซอร์ไม่รองรับ WebP ใช้ไฟล์เดิม
+ */
+async function prepareImage(file: File): Promise<File> {
+  if (!REENCODABLE.has(file.type) || typeof createImageBitmap !== 'function') return file
+
+  let bitmap: ImageBitmap
+  try {
+    // อ่านทิศทางจาก EXIF ด้วย ภาพถ่ายแนวตั้งจากโทรศัพท์จึงไม่กลายเป็นแนวนอน
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+  } catch {
+    return file
+  }
+
+  try {
+    const longest = Math.max(bitmap.width, bitmap.height)
+    if (longest <= MAX_EDGE && file.size <= KEEP_BELOW_BYTES) return file
+
+    const scale = Math.min(1, MAX_EDGE / longest)
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+
+    const context = canvas.getContext('2d')
+    if (!context) return file
+
+    context.imageSmoothingQuality = 'high'
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+
+    // ภาพหน้าจอ (PNG) มีตัวหนังสือเล็ก ใช้คุณภาพสูงกว่าภาพถ่ายเล็กน้อย
+    const quality = file.type === 'image/png' ? 0.92 : 0.86
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', quality))
+    if (!blob || blob.type !== 'image/webp' || blob.size >= file.size) return file
+
+    const name = `${file.name.replace(/\.[^.]+$/, '') || 'image'}.webp`
+    return new File([blob], name, { type: 'image/webp', lastModified: file.lastModified })
+  } catch {
+    return file
+  } finally {
+    bitmap.close()
+  }
+}
+
 /**
  * อ่านขนาดจริงของภาพ และย่อลงเหลือ 16px เพื่อทำ blur placeholder
  *
@@ -52,7 +109,10 @@ async function inspectImage(
   }
 }
 
-export async function uploadImage(file: File, folder = 'uploads'): Promise<UploadResult> {
+export async function uploadImage(original: File, folder = 'uploads'): Promise<UploadResult> {
+  // ขนาดและชนิดที่ขอสิทธิ์ต้องเป็นของไฟล์ที่ส่งขึ้นจริง ตั๋วอัปโหลดผูกค่าทั้งสองไว้
+  const file = await prepareImage(original)
+
   const ticket = await requestUpload({
     fileName: file.name,
     contentType: file.type,
@@ -86,7 +146,7 @@ export async function uploadImage(file: File, folder = 'uploads'): Promise<Uploa
    * ไม่ส่ง url และ folder กลับไป — เซิร์ฟเวอร์คำนวณเองจาก key ที่เซ็นไว้
    * ค่าที่ผ่านเบราว์เซอร์มาแล้วไม่ควรกลายเป็นค่าที่เชื่อได้อีกฝั่ง
    */
-  await confirmUpload({
+  const confirmed = await confirmUpload({
     key: ticket.key,
     token: ticket.token,
     fileName: file.name,
@@ -94,6 +154,8 @@ export async function uploadImage(file: File, folder = 'uploads'): Promise<Uploa
     size: file.size,
     ...meta,
   })
+
+  if (!confirmed.ok) return { ok: false, error: confirmed.error }
 
   return { ok: true, url: ticket.publicUrl, ...meta }
 }

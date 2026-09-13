@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { z } from 'zod'
 import { LeadStatus, ReviewStatus } from '@/generated/prisma/enums'
 import { db } from '@/lib/db'
@@ -17,8 +17,9 @@ import { requireEditor } from './cms-helpers'
  * เพราะตัวนั้นเชื่อ JWT ที่ยังไม่หมดอายุ ทำให้บัญชีที่ถูกปิดไปแล้วยังแก้สถานะลูกค้าและรีวิวได้
  */
 
-/** หน้าเว็บสาธารณะเป็น static — ต้องสั่ง revalidate เองเมื่อข้อมูลที่แสดงเปลี่ยน */
+/** รีวิวบนหน้าเว็บสาธารณะถูกแคชไว้ (ดู server/cache.ts) — ต้องล้างเองเมื่อข้อมูลที่แสดงเปลี่ยน */
 function revalidatePublicReviews() {
+  updateTag('reviews')
   revalidatePath('/[locale]/reviews', 'page')
   revalidatePath('/[locale]', 'page')
 }

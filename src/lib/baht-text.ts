@@ -1,68 +1,79 @@
+import { toSatang } from './money'
+
 /**
  * แปลงจำนวนเงินเป็นตัวอักษรภาษาไทย เช่น 15000 → "หนึ่งหมื่นห้าพันบาทถ้วน"
  *
  * เอกสารทางการเงินของไทยต้องมีบรรทัดนี้เสมอ เพราะกันการแก้ตัวเลขภายหลัง
- * กฎที่ต่างจากการอ่านเลขทั่วไป: หลักสิบใช้ "ยี่สิบ" ไม่ใช่ "สองสิบ"
- * และหลักหน่วยที่เป็น 1 เมื่อมีหลักสิบนำหน้าจะอ่านว่า "เอ็ด"
+ * ผลลัพธ์ตรงกับฟังก์ชัน BAHTTEXT ของ Excel ซึ่งเป็นแบบที่ฝ่ายบัญชีใช้เทียบ
+ *
+ * กฎที่ต่างจากการอ่านเลขทั่วไป
+ *   หลักสิบ: 1 อ่าน "สิบ" และ 2 อ่าน "ยี่สิบ"
+ *   หลักหน่วยที่เป็น 1 อ่าน "เอ็ด" เมื่อมีหลักที่สูงกว่าไม่เป็นศูนย์ นับข้ามกลุ่มล้านด้วย
+ *     เช่น 10,000,001 = สิบล้านเอ็ด
+ *   สตางค์อ่านเป็นจำนวนของมันเอง 0.01 = หนึ่งสตางค์
+ *   ไม่ถึงหนึ่งบาทไม่ต้องขึ้นต้นด้วย "ศูนย์บาท" เช่น 0.50 = ห้าสิบสตางค์
+ *
+ * รุ่นก่อนอ่าน 100.01 เป็น "หนึ่งร้อยบาทเอ็ดสตางค์" และ 10,000,001 เป็น "สิบล้านหนึ่ง"
  */
 
-const digits = ['', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า']
-const places = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน', 'ล้าน']
+const DIGITS = ['', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า']
+const PLACES = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน']
 
-/** อ่านจำนวนเต็มไม่เกิน 7 หลัก (ส่วนที่เกินล้านจะถูกตัดมาเรียกซ้ำ) */
-function readGroup(value: string): string {
-  const length = value.length
+/** อ่านเลข 0–999,999 หนึ่งกลุ่ม — hasHigher คือมีหลักที่สูงกว่ากลุ่มนี้ที่ไม่เป็นศูนย์ */
+function readGroup(value: number, hasHigher: boolean): string {
+  const text = String(value)
   let result = ''
 
-  for (let i = 0; i < length; i++) {
-    const digit = Number(value[i])
+  for (let i = 0; i < text.length; i++) {
+    const digit = Number(text[i])
     if (digit === 0) continue
 
-    const place = length - i - 1
+    const place = text.length - i - 1
 
-    if (place === 1 && digit === 1) {
-      result += 'สิบ'
-    } else if (place === 1 && digit === 2) {
-      result += 'ยี่สิบ'
-    } else if (place === 0 && digit === 1 && length > 1) {
+    if (place === 1) {
+      result += digit === 1 ? 'สิบ' : digit === 2 ? 'ยี่สิบ' : `${DIGITS[digit]}สิบ`
+    } else if (place === 0 && digit === 1 && (hasHigher || value >= 10)) {
       result += 'เอ็ด'
     } else {
-      result += digits[digit] + places[place]
+      result += DIGITS[digit] + PLACES[place]
     }
   }
 
   return result
 }
 
-function readInteger(value: number): string {
-  if (value === 0) return 'ศูนย์'
-
-  const text = String(value)
-
-  // ตัวเลขเกินหลักล้าน: อ่านส่วนหน้าแล้วต่อท้ายด้วย "ล้าน" แล้ววนซ้ำกับส่วนที่เหลือ
-  if (text.length > 7) {
-    const head = text.slice(0, text.length - 6)
-    const tail = text.slice(text.length - 6)
-    const tailText = Number(tail) === 0 ? '' : readGroup(tail.replace(/^0+/, '') || '0')
-    return `${readInteger(Number(head))}ล้าน${tailText}`
+/** อ่านจำนวนเต็มบวก แบ่งกลุ่มละหกหลักคั่นด้วย "ล้าน" (1,000,000,000,000 = หนึ่งล้านล้าน) */
+function readInteger(value: bigint): string {
+  const groups: number[] = []
+  for (let rest = value; rest > 0n; rest /= 1_000_000n) {
+    groups.unshift(Number(rest % 1_000_000n))
   }
 
-  return readGroup(text)
+  let result = ''
+  let hasHigher = false
+
+  groups.forEach((group, index) => {
+    result += readGroup(group, hasHigher)
+    if (index < groups.length - 1) result += 'ล้าน'
+    if (group > 0) hasHigher = true
+  })
+
+  return result
 }
 
-export function bahtText(amount: number): string {
-  if (!Number.isFinite(amount)) return ''
+export function bahtText(amount: unknown): string {
+  if (typeof amount === 'number' && !Number.isFinite(amount)) return ''
 
-  const isNegative = amount < 0
-  const absolute = Math.abs(amount)
+  const satang = toSatang(amount)
+  const negative = satang < 0n
+  const absolute = negative ? -satang : satang
+  const baht = absolute / 100n
+  const cents = Number(absolute % 100n)
 
-  // ปัดที่สตางค์เพื่อเลี่ยงปัญหาทศนิยมลอยตัว เช่น 0.1 + 0.2
-  const totalSatang = Math.round(absolute * 100)
-  const baht = Math.floor(totalSatang / 100)
-  const satang = totalSatang % 100
+  const text =
+    cents === 0
+      ? `${baht === 0n ? 'ศูนย์' : readInteger(baht)}บาทถ้วน`
+      : `${baht === 0n ? '' : `${readInteger(baht)}บาท`}${readGroup(cents, false)}สตางค์`
 
-  const bahtPart = `${readInteger(baht)}บาท`
-  const satangPart = satang === 0 ? 'ถ้วน' : `${readGroup(String(satang).padStart(2, '0'))}สตางค์`
-
-  return `${isNegative ? 'ลบ' : ''}${bahtPart}${satangPart}`
+  return `${negative ? 'ลบ' : ''}${text}`
 }

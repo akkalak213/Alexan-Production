@@ -1,4 +1,5 @@
 import { cache } from 'react'
+import { cachedQuery } from '@/server/cache'
 import { db } from './db'
 
 /**
@@ -98,11 +99,17 @@ const defaults: SiteSettings = {
   },
 }
 
+/**
+ * อ่านค่าตั้งค่าหลายกลุ่มในครั้งเดียว ผลถูกแคชข้ามคำขอและล้างเมื่อบันทึกหน้าตั้งค่า
+ * ข้อมูลบริษัทอยู่ใน layout ของทุกหน้า เดิมจึงเป็นคำสั่งฐานข้อมูลที่ถูกยิงบ่อยที่สุดของทั้งเว็บ
+ */
+const readSettings = cachedQuery('settings', ['settings'], (keys: string[]) =>
+  db.siteSetting.findMany({ where: { key: { in: keys } } }),
+)
+
 export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
   try {
-    const rows = await db.siteSetting.findMany({
-      where: { key: { in: ['company', 'social', 'hero'] } },
-    })
+    const rows = await readSettings(['company', 'social', 'hero'])
 
     const byKey = Object.fromEntries(rows.map((r) => [r.key, r.value])) as Record<string, unknown>
 
@@ -122,7 +129,7 @@ export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
 
 export const getQuoteDefaults = cache(async (): Promise<QuoteDefaults> => {
   try {
-    const row = await db.siteSetting.findUnique({ where: { key: 'quote' } })
+    const [row] = await readSettings(['quote'])
     const stored = (row?.value ?? {}) as Partial<QuoteDefaults>
 
     return {

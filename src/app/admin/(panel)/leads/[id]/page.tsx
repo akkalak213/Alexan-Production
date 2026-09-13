@@ -21,8 +21,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const lead = await getLeadById(id)
   if (!lead) notFound()
 
-  const dateTime = new Intl.DateTimeFormat('th-TH', {
-    dateStyle: 'medium',
+  const dateTime = new Intl.DateTimeFormat('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'medium',
     timeStyle: 'short',
   })
 

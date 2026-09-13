@@ -63,7 +63,7 @@ export default async function QuotePrintPage({ params }: { params: Promise<{ id:
     date: isEnglish ? 'Date' : 'วันที่',
   }
 
-  const dateFormat = new Intl.DateTimeFormat(isEnglish ? 'en-GB' : 'th-TH', { dateStyle: 'long' })
+  const dateFormat = new Intl.DateTimeFormat(isEnglish ? 'en-GB' : 'th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
   const terms = (quote.termsText ?? '').split('\n').filter(Boolean)
 
   return (

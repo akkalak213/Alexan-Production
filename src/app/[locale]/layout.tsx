@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import { IBM_Plex_Sans_Thai, Inter, Instrument_Serif, JetBrains_Mono } from 'next/font/google'
 import { hasLocale, NextIntlClientProvider } from 'next-intl'
-import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { getTranslations, setRequestLocale, getMessages } from 'next-intl/server'
+import { pickMessages, PUBLIC_CLIENT_NAMESPACES } from '@/i18n/client-messages'
 import { notFound } from 'next/navigation'
 import { Analytics } from '@/components/Analytics'
 import { JsonLd } from '@/components/JsonLd'
@@ -170,13 +171,16 @@ export default async function LocaleLayout({
   // ชื่อบริการภาษาเดียวกับที่คนเห็นบนเมนู ไม่ใช่รายการที่ฮาร์ดโค้ดแยกไว้ใน JSON-LD
   const serviceNames = serviceCategories.map((category) => tCategory(category))
 
+  // ส่งให้เบราว์เซอร์เฉพาะข้อความที่ client component ใช้ ข้อความที่เหลือเรนเดอร์ไปแล้วฝั่ง server
+  const clientMessages = pickMessages(await getMessages(), PUBLIC_CLIENT_NAMESPACES)
+
   return (
     <html lang={locale} suppressHydrationWarning className={fontVariables}>
       <body className="public-site flex min-h-dvh flex-col">
         {/* แถบบอกความคืบหน้าการอ่าน ผูกกับ scroll timeline ของ CSS ไม่มี JavaScript */}
         <div aria-hidden className="scroll-progress no-print" />
 
-        <NextIntlClientProvider>
+        <NextIntlClientProvider messages={clientMessages}>
           <Providers nonce={nonce}>
             <a
               href="#main"

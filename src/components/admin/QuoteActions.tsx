@@ -29,7 +29,7 @@ const tone: Record<QuoteStatus, 'muted' | 'accent' | 'success' | 'warning'> = {
   EXPIRED: 'warning',
 }
 
-const dateTime = new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeStyle: 'short' })
+const dateTime = new Intl.DateTimeFormat('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'medium', timeStyle: 'short' })
 
 export function QuoteActions({
   id,

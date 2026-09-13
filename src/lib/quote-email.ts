@@ -93,7 +93,7 @@ export function quoteEmail(data: QuoteEmailData) {
         closing: 'หากต้องการปรับรายการหรือขอบเขตงาน ตอบกลับอีเมลฉบับนี้ได้เลยครับ ยินดีแก้ไขให้',
       }
 
-  const dateFormat = new Intl.DateTimeFormat(isEnglish ? 'en-GB' : 'th-TH', { dateStyle: 'long' })
+  const dateFormat = new Intl.DateTimeFormat(isEnglish ? 'en-GB' : 'th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
 
   const meta = [
     [t.number, data.quoteNumber],

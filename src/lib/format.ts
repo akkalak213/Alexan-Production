@@ -27,8 +27,7 @@ export function formatNumber(value: number, locale: Locale): string {
 
 export function formatDate(date: Date | string, locale: Locale): string {
   const d = typeof date === 'string' ? new Date(date) : date
-  return new Intl.DateTimeFormat(intlLocale(locale), {
-    day: 'numeric',
+  return new Intl.DateTimeFormat(intlLocale(locale), { timeZone: 'Asia/Bangkok', day: 'numeric',
     month: 'long',
     year: 'numeric',
   }).format(d)
@@ -36,7 +35,7 @@ export function formatDate(date: Date | string, locale: Locale): string {
 
 export function formatMonthYear(date: Date | string, locale: Locale): string {
   const d = typeof date === 'string' ? new Date(date) : date
-  return new Intl.DateTimeFormat(intlLocale(locale), { month: 'short', year: 'numeric' }).format(d)
+  return new Intl.DateTimeFormat(intlLocale(locale), { timeZone: 'Asia/Bangkok', month: 'short', year: 'numeric' }).format(d)
 }
 
 /**

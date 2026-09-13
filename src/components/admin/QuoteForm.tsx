@@ -9,6 +9,7 @@ import { useActionToast } from '@/components/ui/Toast'
 import {
   ConfirmSubmitButton,
   SubmitButton,
+  VersionField,
 } from '@/components/admin/AdminUI'
 import { buttonClasses } from '@/components/ui/Button'
 import { Field, FormMessage, Input, Select, Textarea } from '@/components/ui/Form'
@@ -30,6 +31,8 @@ export type QuoteFormData = {
   leadId: string
   leadRefCode: string
   quoteNumber: string
+  /** เวลาแก้ล่าสุด ใช้กันบันทึกทับข้อมูลที่ใหม่กว่า — ใบใหม่เป็นข้อความว่าง */
+  version: string
   customerName: string
   customerCompany: string
   customerAddress: string
@@ -66,13 +69,10 @@ export function QuoteForm({ quote }: { quote: QuoteFormData }) {
   const totals = useMemo(
     () =>
       computeQuoteTotals({
-        lines: lines.map((line) => ({
-          quantity: Number(line.quantity) || 0,
-          unitPrice: Number(line.unitPrice.replace(/,/g, '')) || 0,
-        })),
-        discount: Number(discount) || 0,
-        vatRate: Number(vatRate) || 0,
-        withholdingRate: Number(withholdingRate) || 0,
+        lines: lines.map((line) => ({ quantity: line.quantity, unitPrice: line.unitPrice })),
+        discount,
+        vatRate,
+        withholdingRate,
       }),
     [lines, discount, vatRate, withholdingRate],
   )
@@ -84,6 +84,7 @@ export function QuoteForm({ quote }: { quote: QuoteFormData }) {
     <div className="space-y-6">
       <form action={formAction} className="space-y-6">
         {isEditing && <input type="hidden" name="id" value={quote.id} />}
+        {isEditing && <VersionField initial={quote.version} state={state} />}
         {quote.leadId && <input type="hidden" name="leadId" value={quote.leadId} />}
 
         <AdminCard title="ข้อมูลลูกค้า">
@@ -167,10 +168,7 @@ export function QuoteForm({ quote }: { quote: QuoteFormData }) {
                       />
                       <p className="tabular flex items-center justify-end px-2 text-sm font-medium">
                         {money.format(
-                          lineAmount({
-                            quantity: Number(line.quantity) || 0,
-                            unitPrice: Number(line.unitPrice.replace(/,/g, '')) || 0,
-                          }),
+                          lineAmount({ quantity: line.quantity, unitPrice: line.unitPrice }),
                         )}
                       </p>
                     </div>

@@ -1,13 +1,21 @@
 'use server'
 
+import { after } from 'next/server'
 import type { ServiceCategory } from '@/generated/prisma/enums'
 import { db } from '@/lib/db'
 import { emailShell, renderRows, sendInternalNotification } from '@/lib/mail'
 import { getClientIpHash, getUserAgent, isRateLimited } from '@/lib/rate-limit'
 import { leadSchema, reviewSchema } from '@/lib/validations'
 import type { ActionState } from './action-state'
+import { documentPrefix, nextDocumentNumber, withUniqueRetry } from './document-numbers'
 
-/** Server action ของฟอร์มสาธารณะ — ชนิดของ state อยู่ที่ ./action-state */
+/**
+ * Server action ของฟอร์มสาธารณะ — ชนิดของ state อยู่ที่ ./action-state
+ *
+ * อีเมลแจ้งทีมส่งหลังตอบกลับผู้กรอกแล้ว (after) ไม่ใช่ก่อน
+ * เดิมผู้กรอกต้องรอ Resend ตอบอีกครึ่งวินาทีถึงหนึ่งวินาทีกว่าปุ่มจะขึ้นว่าส่งสำเร็จ
+ * ข้อมูลบันทึกลงฐานข้อมูลก่อนตอบกลับเสมอ อีเมลเป็นแค่การแจ้งเตือน ถ้าส่งไม่ได้คำขอก็ไม่หาย
+ */
 
 function flattenErrors(issues: { path: PropertyKey[]; message: string }[]) {
   const result: Record<string, string[]> = {}
@@ -74,44 +82,28 @@ export async function submitReview(
     return { status: 'error', messageKey: 'serverError' }
   }
 
-  await sendInternalNotification({
-    subject: `รีวิวใหม่รออนุมัติ · ${rating}★ จาก ${authorName}`,
-    replyTo: submitterEmail || undefined,
-    html: emailShell(
-      'มีรีวิวใหม่รอการอนุมัติ',
-      renderRows([
-        ['ผู้รีวิว', authorName],
-        ['ตำแหน่ง/บริษัท', authorRole],
-        ['อีเมล', submitterEmail],
-        ['คะแนน', `${rating} / 5`],
-        ['บริการ', serviceCategory],
-        ['เนื้อหา', content],
-      ]),
-    ),
-  })
+  after(() =>
+    sendInternalNotification({
+      subject: `รีวิวใหม่รออนุมัติ · ${rating}★ จาก ${authorName}`,
+      replyTo: submitterEmail || undefined,
+      html: emailShell(
+        'มีรีวิวใหม่รอการอนุมัติ',
+        renderRows([
+          ['ผู้รีวิว', authorName],
+          ['ตำแหน่ง/บริษัท', authorRole],
+          ['อีเมล', submitterEmail],
+          ['คะแนน', `${rating} / 5`],
+          ['บริการ', serviceCategory],
+          ['เนื้อหา', content],
+        ]),
+      ),
+    }),
+  )
 
   return { status: 'success', messageKey: 'reviewSuccess' }
 }
 
 // ──────────────────── คำขอจากลูกค้า (Lead) ────────────────────
-
-/** AX-2608-0042 — เดือนปีแล้วตามด้วยลำดับในเดือนนั้น */
-async function generateRefCode(): Promise<string> {
-  const now = new Date()
-  const prefix = `AX-${String(now.getFullYear()).slice(2)}${String(now.getMonth() + 1).padStart(2, '0')}`
-
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-  const countThisMonth = await db.lead.count({ where: { createdAt: { gte: startOfMonth } } })
-
-  // ถ้ามีคำขอเข้ามาพร้อมกันจนเลขชน ให้ขยับไปเลขถัดไป
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const candidate = `${prefix}-${String(countThisMonth + 1 + attempt).padStart(4, '0')}`
-    const exists = await db.lead.findUnique({ where: { refCode: candidate }, select: { id: true } })
-    if (!exists) return candidate
-  }
-
-  return `${prefix}-${Date.now().toString().slice(-6)}`
-}
 
 export async function submitLead(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = leadSchema.safeParse({
@@ -162,45 +154,64 @@ export async function submitLead(_prev: ActionState, formData: FormData): Promis
   } = parsed.data
 
   let refCode: string
-  try {
-    refCode = await generateRefCode()
+  let equipmentLabels: string[]
 
+  try {
     // เก็บชื่ออุปกรณ์ ณ เวลาที่ขอไว้ด้วย เผื่ออุปกรณ์ถูกลบหรือเปลี่ยนชื่อภายหลัง
     const equipment = equipmentIds.length
       ? await db.equipment.findMany({
           where: { id: { in: equipmentIds } },
-          select: { id: true, brand: true, model: true, nameTh: true },
+          select: { id: true, brand: true, model: true },
         })
       : []
+    equipmentLabels = equipment.map((item) => `${item.brand} ${item.model}`)
 
-    await db.lead.create({
-      data: {
-        refCode,
-        name,
-        email,
-        phone: phone || null,
-        company: company || null,
-        services: services as ServiceCategory[],
-        budgetRange: budgetRange || null,
-        message,
-        locale,
-        source,
-        ipHash,
-        // เก็บ id ไว้เชื่อมกลับหาแพ็กเกจ และเก็บชื่อกับราคาเป็นข้อความคู่กัน
-        // เผื่อแพ็กเกจถูกแก้ราคาหรือถูกลบ ทีมขายจะยังรู้ว่าตอนลูกค้ากดเห็นราคาเท่าไหร่
-        packageId: packageId || null,
-        packageName: packageName || null,
-        packagePriceTag: packagePriceTag || null,
-        items: {
-          create: equipment.map((e) => ({
-            equipmentId: e.id,
-            labelSnapshot: `${e.brand} ${e.model}`,
-          })),
+    const prefix = documentPrefix('AX')
+
+    // คำขอสองรายการที่เข้ามาพร้อมกันอาจได้เลขเดียวกัน unique index จะปฏิเสธรายการหลัง แล้วลองเลขถัดไป
+    const lead = await withUniqueRetry(async (attempt) => {
+      const used = await db.lead.findMany({
+        where: { refCode: { startsWith: `${prefix}-` } },
+        select: { refCode: true },
+      })
+
+      return db.lead.create({
+        data: {
+          refCode: nextDocumentNumber(prefix, used.map((row) => row.refCode), attempt),
+          name,
+          email,
+          phone: phone || null,
+          company: company || null,
+          services: services as ServiceCategory[],
+          budgetRange: budgetRange || null,
+          message,
+          locale,
+          source,
+          ipHash,
+          // เก็บ id ไว้เชื่อมกลับหาแพ็กเกจ และเก็บชื่อกับราคาเป็นข้อความคู่กัน
+          // เผื่อแพ็กเกจถูกแก้ราคาหรือถูกลบ ทีมขายจะยังรู้ว่าตอนลูกค้ากดเห็นราคาเท่าไหร่
+          packageId: packageId || null,
+          packageName: packageName || null,
+          packagePriceTag: packagePriceTag || null,
+          items: {
+            create: equipment.map((item) => ({
+              equipmentId: item.id,
+              labelSnapshot: `${item.brand} ${item.model}`,
+            })),
+          },
         },
-      },
+        select: { refCode: true },
+      })
     })
 
-    await sendInternalNotification({
+    refCode = lead.refCode
+  } catch (error) {
+    console.error('[action:submitLead] บันทึกไม่สำเร็จ', error)
+    return { status: 'error', messageKey: 'serverError' }
+  }
+
+  after(() =>
+    sendInternalNotification({
       subject: `คำขอใหม่ ${refCode} · ${name}`,
       replyTo: email,
       html: emailShell(
@@ -214,15 +225,12 @@ export async function submitLead(_prev: ActionState, formData: FormData): Promis
           ['บริการที่สนใจ', services.join(', ')],
           ['งบประมาณ', budgetRange],
           ['แพ็กเกจที่เลือก', packageName ? `${packageName} (${packagePriceTag})` : ''],
-          ['อุปกรณ์', equipment.map((e) => `${e.brand} ${e.model}`).join('\n')],
+          ['อุปกรณ์', equipmentLabels.join('\n')],
           ['ข้อความ', message],
         ]),
       ),
-    })
-  } catch (error) {
-    console.error('[action:submitLead] บันทึกไม่สำเร็จ', error)
-    return { status: 'error', messageKey: 'serverError' }
-  }
+    }),
+  )
 
   return { status: 'success', messageKey: 'leadSuccess', refCode }
 }

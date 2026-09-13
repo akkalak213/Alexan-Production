@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { IBM_Plex_Sans_Thai, Inter, Instrument_Serif } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getMessages } from 'next-intl/server'
+import { ADMIN_CLIENT_NAMESPACES, pickMessages } from '@/i18n/client-messages'
 import { Providers } from '@/components/Providers'
 import { ToastProvider } from '@/components/ui/Toast'
 import { getNonce } from '@/lib/nonce'
@@ -46,7 +47,7 @@ export default async function AdminRootLayout({ children }: { children: React.Re
       className={`${inter.variable} ${plexThai.variable} ${instrumentSerif.variable}`}
     >
       <body className="min-h-dvh bg-background font-sans text-foreground antialiased">
-        <NextIntlClientProvider locale="th" messages={messages}>
+        <NextIntlClientProvider locale="th" messages={pickMessages(messages, ADMIN_CLIENT_NAMESPACES)}>
           <Providers nonce={nonce}>
             <ToastProvider>{children}</ToastProvider>
           </Providers>

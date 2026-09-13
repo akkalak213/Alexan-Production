@@ -1,3 +1,5 @@
+import { divideRounded, fromSatang, toScaledInt, toSatang } from './money'
+
 /**
  * คิดราคาค่าเช่าอุปกรณ์
  *
@@ -8,6 +10,8 @@
  * ตอนนี้รองรับเฉพาะค่าเช่าอุปกรณ์ ซึ่งเป็นหมวดที่ราคานิ่งที่สุด — มีเรตต่อวันต่อสัปดาห์
  * ตายตัวอยู่ในฐานข้อมูลอยู่แล้ว ไม่ต้องประเมินขอบเขตงาน
  * งานบริการอย่างถ่ายภาพหรือทำเว็บยังคิดอัตโนมัติไม่ได้ เพราะราคาขึ้นกับขอบเขตที่ต้องคุยกันก่อน
+ *
+ * คิดเป็นสตางค์ทั้งหมดด้วยสูตรปัดเศษชุดเดียวกับใบเสนอราคา (ดู money.ts)
  */
 
 export type RentalPriceInput = {
@@ -37,25 +41,26 @@ export type RentalLineTotal = {
  */
 export function rentalLineTotal(item: RentalPriceInput, days: number): RentalLineTotal {
   const safeDays = Math.max(1, Math.trunc(days) || 1)
-  const quantity = Math.max(1, item.quantity || 1)
+  const quantity = BigInt(Math.max(1, Math.trunc(item.quantity) || 1))
 
   if (item.dailyRate === null) {
     return { isOnRequest: true, amount: 0, weeks: 0, extraDays: safeDays }
   }
 
-  const dailyOnly = item.dailyRate * safeDays
+  const daily = toSatang(item.dailyRate)
+  const dailyOnly = daily * BigInt(safeDays)
 
   if (item.weeklyRate === null || safeDays < 7) {
-    return { isOnRequest: false, amount: dailyOnly * quantity, weeks: 0, extraDays: safeDays }
+    return { isOnRequest: false, amount: fromSatang(dailyOnly * quantity), weeks: 0, extraDays: safeDays }
   }
 
   const weeks = Math.floor(safeDays / 7)
   const extraDays = safeDays % 7
-  const weekly = weeks * item.weeklyRate + extraDays * item.dailyRate
+  const weekly = toSatang(item.weeklyRate) * BigInt(weeks) + daily * BigInt(extraDays)
 
   return weekly <= dailyOnly
-    ? { isOnRequest: false, amount: weekly * quantity, weeks, extraDays }
-    : { isOnRequest: false, amount: dailyOnly * quantity, weeks: 0, extraDays: safeDays }
+    ? { isOnRequest: false, amount: fromSatang(weekly * quantity), weeks, extraDays }
+    : { isOnRequest: false, amount: fromSatang(dailyOnly * quantity), weeks: 0, extraDays: safeDays }
 }
 
 export type RentalEstimateTotals = {
@@ -68,8 +73,6 @@ export type RentalEstimateTotals = {
   hasOnRequest: boolean
 }
 
-const round2 = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100
-
 export function rentalEstimateTotals({
   amounts,
   deposits,
@@ -81,14 +84,15 @@ export function rentalEstimateTotals({
   vatRate: number
   hasOnRequest: boolean
 }): RentalEstimateTotals {
-  const subtotal = round2(amounts.reduce((sum, value) => sum + value, 0))
-  const vatAmount = round2((subtotal * (vatRate || 0)) / 100)
+  const subtotal = amounts.reduce((sum, value) => sum + toSatang(value), 0n)
+  const rate = toScaledInt(vatRate, 2)
+  const vatAmount = divideRounded(subtotal * (rate < 0n ? 0n : rate), 10_000n)
 
   return {
-    subtotal,
-    vatAmount,
-    total: round2(subtotal + vatAmount),
-    deposit: round2(deposits.reduce((sum, value) => sum + value, 0)),
+    subtotal: fromSatang(subtotal),
+    vatAmount: fromSatang(vatAmount),
+    total: fromSatang(subtotal + vatAmount),
+    deposit: fromSatang(deposits.reduce((sum, value) => sum + toSatang(value), 0n)),
     hasOnRequest,
   }
 }

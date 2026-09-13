@@ -13,7 +13,8 @@ const createPrismaClient = () =>
       connectionString: serverEnv.DATABASE_URL,
       max: 10,
       connectionTimeoutMillis: 5_000,
-      idleTimeoutMillis: 30_000,
+      // เก็บ connection ที่ว่างไว้ห้านาที (เดิมสามสิบวินาที) ช่วงที่คนเข้าห่าง ๆ จะได้ไม่ต้องต่อใหม่แทบทุกคำขอ
+      idleTimeoutMillis: 300_000,
       statement_timeout: 15_000,
       query_timeout: 20_000,
       keepAlive: true,

@@ -121,7 +121,7 @@ export default async function RentalEstimatePage({ params, searchParams }: Param
   const validUntil = new Date(issueDate)
   validUntil.setDate(validUntil.getDate() + quoteDefaults.defaultValidDays)
 
-  const dateFormat = new Intl.DateTimeFormat(isThai ? 'th-TH' : 'en-GB', { dateStyle: 'long' })
+  const dateFormat = new Intl.DateTimeFormat(isThai ? 'th-TH' : 'en-GB', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
   const money = new Intl.NumberFormat(isThai ? 'th-TH' : 'en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,

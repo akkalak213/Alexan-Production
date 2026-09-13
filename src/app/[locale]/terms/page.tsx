@@ -83,8 +83,7 @@ export default async function TermsPage({ params }: { params: Promise<{ locale: 
   setRequestLocale(locale)
 
   const [t, settings] = await Promise.all([getTranslations('footer'), getSiteSettings()])
-  const updated = new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-GB', {
-    dateStyle: 'long',
+  const updated = new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-GB', { timeZone: 'Asia/Bangkok', dateStyle: 'long',
   }).format(new Date('2026-08-10'))
 
   return (

@@ -54,6 +54,7 @@ export default async function NewQuotePage({
           leadId: lead?.id ?? '',
           leadRefCode: lead?.refCode ?? '',
           quoteNumber: '',
+          version: '',
           customerName: lead?.name ?? '',
           customerCompany: lead?.company ?? '',
           customerAddress: '',

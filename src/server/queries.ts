@@ -2,20 +2,27 @@ import { cache } from 'react'
 import type { EquipmentCategory, ServiceCategory } from '@/generated/prisma/enums'
 import { db } from '@/lib/db'
 import { publicProjectWhere, publicReviewWhere } from '@/lib/sample-content'
+import { cachedQuery } from './cache'
 
 /**
  * Query ทั้งหมดของหน้าเว็บสาธารณะ
  *
  * Failed reads reach the localized retry boundary; empty states mean a successful read with no records.
  * แต่ยัง log ทุกครั้งเพื่อให้จับปัญหาได้จาก log ของ Railway
+ *
+ * ทุกตัวห่อสามชั้น จากนอกเข้าใน
+ *   cache ของ React   กันอ่านซ้ำในคำขอเดียว เช่น layout กับ page อ่านค่าเดียวกัน
+ *   cachedQuery       เก็บผลข้ามคำขอ ล้างด้วยแท็กเมื่อหลังบ้านบันทึก (ดู server/cache.ts)
+ *   safe              log แล้วโยนต่อ ความผิดพลาดจึงไม่ถูกเก็บลงแคช
+ *
+ * แท็กต้องครอบทุกตารางที่ผลลัพธ์แสดง ไม่ใช่แค่ตารางหลัก
+ * เช่นหน้ารายละเอียดผลงานแสดงชื่อบริการด้วย จึงติดทั้ง projects และ services
  */
-async function safe<T>(label: string, run: () => Promise<T>, fallback: T): Promise<T> {
+async function safe<T>(label: string, run: () => Promise<T>): Promise<T> {
   try {
     return await run()
   } catch (error) {
     console.error(`[query:${label}] อ่านฐานข้อมูลไม่สำเร็จ`, error)
-    // The fallback argument retains query inference; unavailable data is not an empty catalogue.
-    void fallback
     throw new Error('Public data is temporarily unavailable', { cause: error })
   }
 }
@@ -34,43 +41,40 @@ const serviceCardSelect = {
   coverImage: true,
 } as const
 
-export const getActiveServices = cache(() =>
-  safe(
-    'services',
-    () =>
+export const getActiveServices = cache(
+  cachedQuery('services:active', ['services'], () =>
+    safe('services', () =>
       db.service.findMany({
         where: { isActive: true },
         orderBy: { order: 'asc' },
         select: serviceCardSelect,
       }),
-    [],
+    ),
   ),
 )
 
-export const getServiceBySlug = cache((slug: string) =>
-  safe(
-    'service-detail',
-    () =>
+export const getServiceBySlug = cache(
+  cachedQuery('services:detail', ['services'], (slug: string) =>
+    safe('service-detail', () =>
       db.service.findFirst({
         where: { slug, isActive: true },
         include: {
           packages: { where: { isActive: true }, orderBy: { order: 'asc' } },
         },
       }),
-    null,
+    ),
   ),
 )
 
-export const getServiceSlugs = cache(() =>
-  safe(
-    'service-slugs',
-    () =>
+export const getServiceSlugs = cache(
+  cachedQuery('services:slugs', ['services'], () =>
+    safe('service-slugs', () =>
       db.service.findMany({
         where: { isActive: true },
         // updatedAt ไปเป็น lastmod ใน sitemap — Google ใช้ตัดสินว่าควรกลับมาเก็บหน้านี้ใหม่เมื่อไหร่
         select: { slug: true, updatedAt: true },
       }),
-    [] as { slug: string; updatedAt: Date }[],
+    ),
   ),
 )
 
@@ -91,37 +95,34 @@ const projectCardSelect = {
   isFeatured: true,
 } as const
 
-export const getProjects = cache((category?: ServiceCategory) =>
-  safe(
-    'projects',
-    () =>
+export const getProjects = cache(
+  cachedQuery('projects:list', ['projects'], (category?: ServiceCategory) =>
+    safe('projects', () =>
       db.project.findMany({
         where: { ...publicProjectWhere, ...(category ? { category } : {}) },
         orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }, { order: 'asc' }],
         select: projectCardSelect,
       }),
-    [],
+    ),
   ),
 )
 
-export const getFeaturedProjects = cache((take = 4) =>
-  safe(
-    'featured-projects',
-    () =>
+export const getFeaturedProjects = cache(
+  cachedQuery('projects:featured', ['projects'], (take: number = 4) =>
+    safe('featured-projects', () =>
       db.project.findMany({
         where: { ...publicProjectWhere, isFeatured: true },
         orderBy: [{ order: 'asc' }, { publishedAt: 'desc' }],
         take,
         select: projectCardSelect,
       }),
-    [],
+    ),
   ),
 )
 
-export const getProjectBySlug = cache((slug: string) =>
-  safe(
-    'project-detail',
-    () =>
+export const getProjectBySlug = cache(
+  cachedQuery('projects:detail', ['projects', 'services'], (slug: string) =>
+    safe('project-detail', () =>
       db.project.findFirst({
         where: { slug, ...publicProjectWhere },
         include: {
@@ -129,40 +130,40 @@ export const getProjectBySlug = cache((slug: string) =>
           service: { select: { slug: true, titleTh: true, titleEn: true } },
         },
       }),
-    null,
+    ),
   ),
 )
 
-export const getProjectSlugs = cache(() =>
-  safe(
-    'project-slugs',
-    () =>
+export const getProjectSlugs = cache(
+  cachedQuery('projects:slugs', ['projects'], () =>
+    safe('project-slugs', () =>
       db.project.findMany({
         where: { ...publicProjectWhere },
         select: { slug: true, updatedAt: true },
       }),
-    [] as { slug: string; updatedAt: Date }[],
+    ),
   ),
 )
 
-export const getRelatedProjects = cache((category: ServiceCategory, excludeId: string, take = 3) =>
-  safe(
-    'related-projects',
-    () =>
-      db.project.findMany({
-        where: { ...publicProjectWhere, category, id: { not: excludeId } },
-        orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }],
-        take,
-        select: projectCardSelect,
-      }),
-    [],
+export const getRelatedProjects = cache(
+  cachedQuery(
+    'projects:related',
+    ['projects'],
+    (category: ServiceCategory, excludeId: string, take: number = 3) =>
+      safe('related-projects', () =>
+        db.project.findMany({
+          where: { ...publicProjectWhere, category, id: { not: excludeId } },
+          orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }],
+          take,
+          select: projectCardSelect,
+        }),
+      ),
   ),
 )
 
-export const getProjectCountsByCategory = cache(() =>
-  safe(
-    'project-counts',
-    async () => {
+export const getProjectCountsByCategory = cache(
+  cachedQuery('projects:counts', ['projects'], () =>
+    safe('project-counts', async () => {
       const rows = await db.project.groupBy({
         by: ['category'],
         where: { ...publicProjectWhere },
@@ -171,22 +172,20 @@ export const getProjectCountsByCategory = cache(() =>
       return Object.fromEntries(rows.map((r) => [r.category, r._count._all])) as Partial<
         Record<ServiceCategory, number>
       >
-    },
-    {} as Partial<Record<ServiceCategory, number>>,
+    }),
   ),
 )
 
 // ─────────────────────── อุปกรณ์ให้เช่า ───────────────────────
 
-export const getEquipment = cache((category?: EquipmentCategory) =>
-  safe(
-    'equipment',
-    () =>
+export const getEquipment = cache(
+  cachedQuery('equipment:list', ['equipment'], (category?: EquipmentCategory) =>
+    safe('equipment', () =>
       db.equipment.findMany({
         where: { isActive: true, ...(category ? { category } : {}) },
         orderBy: [{ isFeatured: 'desc' }, { order: 'asc' }],
       }),
-    [],
+    ),
   ),
 )
 
@@ -199,37 +198,33 @@ export const getEquipment = cache((category?: EquipmentCategory) =>
  * เรียงตามลำดับที่ตั้งไว้ในหลังบ้าน ไม่ใช่ตามลำดับที่ส่งมาใน URL
  * เพื่อให้เอกสารของลูกค้าสองคนที่เลือกของชุดเดียวกันหน้าตาเหมือนกัน
  */
-export const getEquipmentByIds = cache((ids: string[]) =>
-  safe(
-    'equipment-by-ids',
-    () =>
+export const getEquipmentByIds = cache(
+  cachedQuery('equipment:by-ids', ['equipment'], (ids: string[]) =>
+    safe('equipment-by-ids', () =>
       ids.length
         ? db.equipment.findMany({
             where: { id: { in: ids }, isActive: true },
             orderBy: [{ category: 'asc' }, { order: 'asc' }],
           })
         : Promise.resolve([]),
-    [],
+    ),
   ),
 )
 
-export const getEquipmentBySlug = cache((slug: string) =>
-  safe(
-    'equipment-detail',
-    () => db.equipment.findFirst({ where: { slug, isActive: true } }),
-    null,
+export const getEquipmentBySlug = cache(
+  cachedQuery('equipment:detail', ['equipment'], (slug: string) =>
+    safe('equipment-detail', () => db.equipment.findFirst({ where: { slug, isActive: true } })),
   ),
 )
 
-export const getEquipmentSlugs = cache(() =>
-  safe(
-    'equipment-slugs',
-    () =>
+export const getEquipmentSlugs = cache(
+  cachedQuery('equipment:slugs', ['equipment'], () =>
+    safe('equipment-slugs', () =>
       db.equipment.findMany({
         where: { isActive: true },
         select: { slug: true, updatedAt: true },
       }),
-    [] as { slug: string; updatedAt: Date }[],
+    ),
   ),
 )
 
@@ -240,23 +235,23 @@ export const getEquipmentSlugs = cache(() =>
  * หน้าที่มีแต่ลิงก์เข้าไม่มีลิงก์ออกจะถูกมองว่าเป็นทางตัน และได้น้ำหนักน้อยกว่าที่ควร
  */
 export const getRelatedEquipment = cache(
-  (category: EquipmentCategory, excludeId: string, take = 3) =>
-    safe(
-      'equipment-related',
-      () =>
+  cachedQuery(
+    'equipment:related',
+    ['equipment'],
+    (category: EquipmentCategory, excludeId: string, take: number = 3) =>
+      safe('equipment-related', () =>
         db.equipment.findMany({
           where: { isActive: true, category, id: { not: excludeId } },
           orderBy: [{ isFeatured: 'desc' }, { order: 'asc' }],
           take,
         }),
-      [],
-    ),
+      ),
+  ),
 )
 
-export const getEquipmentCountsByCategory = cache(() =>
-  safe(
-    'equipment-counts',
-    async () => {
+export const getEquipmentCountsByCategory = cache(
+  cachedQuery('equipment:counts', ['equipment'], () =>
+    safe('equipment-counts', async () => {
       const rows = await db.equipment.groupBy({
         by: ['category'],
         where: { isActive: true },
@@ -265,17 +260,15 @@ export const getEquipmentCountsByCategory = cache(() =>
       return Object.fromEntries(rows.map((r) => [r.category, r._count._all])) as Partial<
         Record<EquipmentCategory, number>
       >
-    },
-    {} as Partial<Record<EquipmentCategory, number>>,
+    }),
   ),
 )
 
 // ─────────────────────────── รีวิว ───────────────────────────
 
-export const getApprovedReviews = cache((take?: number) =>
-  safe(
-    'reviews',
-    () =>
+export const getApprovedReviews = cache(
+  cachedQuery('reviews:approved', ['reviews'], (take?: number) =>
+    safe('reviews', () =>
       db.review.findMany({
         where: { ...publicReviewWhere },
         orderBy: [{ isPinned: 'desc' }, { approvedAt: 'desc' }, { createdAt: 'desc' }],
@@ -296,14 +289,13 @@ export const getApprovedReviews = cache((take?: number) =>
           createdAt: true,
         },
       }),
-    [],
+    ),
   ),
 )
 
-export const getReviewStats = cache(() =>
-  safe(
-    'review-stats',
-    async () => {
+export const getReviewStats = cache(
+  cachedQuery('reviews:stats', ['reviews'], () =>
+    safe('review-stats', async () => {
       const [aggregate, byRating] = await Promise.all([
         db.review.aggregate({
           where: { ...publicReviewWhere },
@@ -328,12 +320,7 @@ export const getReviewStats = cache(() =>
           return { star, count, percent: total > 0 ? (count / total) * 100 : 0 }
         }),
       }
-    },
-    {
-      total: 0,
-      average: 0,
-      distribution: [5, 4, 3, 2, 1].map((star) => ({ star, count: 0, percent: 0 })),
-    },
+    }),
   ),
 )
 
@@ -353,60 +340,54 @@ const postCardSelect = {
   isFeatured: true,
 } as const
 
-export const getPosts = cache((take?: number) =>
-  safe(
-    'posts',
-    () =>
+export const getPosts = cache(
+  cachedQuery('posts:list', ['posts'], (take?: number) =>
+    safe('posts', () =>
       db.post.findMany({
         where: { status: 'PUBLISHED' },
         orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }],
         ...(take ? { take } : {}),
         select: postCardSelect,
       }),
-    [],
+    ),
   ),
 )
 
-export const getPostBySlug = cache((slug: string) =>
-  safe(
-    'post-detail',
-    () =>
+export const getPostBySlug = cache(
+  cachedQuery('posts:detail', ['posts', 'team'], (slug: string) =>
+    safe('post-detail', () =>
       db.post.findFirst({
         where: { slug, status: 'PUBLISHED' },
         include: { author: { select: { name: true, avatarUrl: true } } },
       }),
-    null,
+    ),
   ),
 )
 
-export const getPostSlugs = cache(() =>
-  safe(
-    'post-slugs',
-    () =>
+export const getPostSlugs = cache(
+  cachedQuery('posts:slugs', ['posts'], () =>
+    safe('post-slugs', () =>
       db.post.findMany({
         where: { status: 'PUBLISHED' },
         select: { slug: true, updatedAt: true },
       }),
-    [] as { slug: string; updatedAt: Date }[],
+    ),
   ),
 )
 
 // ─────────────────────────── ทีมงาน ───────────────────────────
 
-export const getTeamMembers = cache(() =>
-  safe(
-    'team',
-    () => db.teamMember.findMany({ where: { isActive: true }, orderBy: { order: 'asc' } }),
-    [],
+export const getTeamMembers = cache(
+  cachedQuery('team:active', ['team'], () =>
+    safe('team', () => db.teamMember.findMany({ where: { isActive: true }, orderBy: { order: 'asc' } })),
   ),
 )
 
 // ─────────────────────── สถิติหน้าแรก ───────────────────────
 
-export const getHomeStats = cache(() =>
-  safe(
-    'home-stats',
-    async () => {
+export const getHomeStats = cache(
+  cachedQuery('home:stats', ['projects', 'reviews'], () =>
+    safe('home-stats', async () => {
       const [projects, reviews] = await Promise.all([
         db.project.count({ where: publicProjectWhere }),
         db.review.aggregate({
@@ -421,8 +402,7 @@ export const getHomeStats = cache(() =>
         reviewCount: reviews._count,
         averageRating: reviews._avg.rating ?? 0,
       }
-    },
-    { projects: 0, reviewCount: 0, averageRating: 0 },
+    }),
   ),
 )
 
@@ -432,10 +412,9 @@ export const getHomeStats = cache(() =>
  * ส่งมาแค่ id ทาง URL แล้วอ่านชื่อกับราคาจากฐานข้อมูลที่นี่
  * ไม่ส่งราคามาทาง query string เพราะแก้ได้จากแถบที่อยู่ และทำให้ URL ยาวโดยไม่จำเป็น
  */
-export const getPackageForQuote = cache((id: string) =>
-  safe(
-    'package-for-quote',
-    () =>
+export const getPackageForQuote = cache(
+  cachedQuery('services:package', ['services'], (id: string) =>
+    safe('package-for-quote', () =>
       db.servicePackage.findFirst({
         where: { id, isActive: true },
         select: {
@@ -448,7 +427,7 @@ export const getPackageForQuote = cache((id: string) =>
           service: { select: { category: true, titleTh: true, titleEn: true } },
         },
       }),
-    null,
+    ),
   ),
 )
 
@@ -458,10 +437,9 @@ export const getPackageForQuote = cache((id: string) =>
  * บริการพร้อมจุดเด่นและแพ็กเกจที่ราคาเริ่มต้นต่ำสุดหนึ่งชุด
  * หน้าแรกใช้ทำรายการราคาย่อ ส่วนจุดเด่นของบริการสตูดิโอใช้บอกว่าในสตูดิโอมีอะไร
  */
-export const getHomeServices = cache(() =>
-  safe(
-    'home-services',
-    () =>
+export const getHomeServices = cache(
+  cachedQuery('home:services', ['services'], () =>
+    safe('home-services', () =>
       db.service.findMany({
         where: { isActive: true },
         orderBy: { order: 'asc' },
@@ -477,15 +455,14 @@ export const getHomeServices = cache(() =>
           },
         },
       }),
-    [],
+    ),
   ),
 )
 
 /** งานดิจิทัลหนึ่งชิ้นพร้อมภาพหน้าจอ ผลงานเด่นมาก่อน */
-export const getHomeDigitalCase = cache(() =>
-  safe(
-    'home-digital-case',
-    () =>
+export const getHomeDigitalCase = cache(
+  cachedQuery('home:digital-case', ['projects'], () =>
+    safe('home-digital-case', () =>
       db.project.findFirst({
         where: { ...publicProjectWhere, category: { in: ['WEB', 'WEB_APP', 'MOBILE_APP'] } },
         orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }, { order: 'asc' }],
@@ -501,15 +478,14 @@ export const getHomeDigitalCase = cache(() =>
           },
         },
       }),
-    null,
+    ),
   ),
 )
 
 /** งานภาพที่มีภาพให้วางโมเสกได้ ผลงานเด่นมาก่อน ดึงทั้งชุด (สูงสุด 40 ภาพ) เพื่อให้หน้าแรกหยิบกระจายได้ทั่วชุด */
-export const getHomePhotos = cache(() =>
-  safe(
-    'home-photos',
-    () =>
+export const getHomePhotos = cache(
+  cachedQuery('home:photos', ['projects'], () =>
+    safe('home-photos', () =>
       db.project.findMany({
         where: { ...publicProjectWhere, category: { in: ['PHOTOGRAPHY', 'VIDEO'] } },
         orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }, { order: 'asc' }],
@@ -522,6 +498,6 @@ export const getHomePhotos = cache(() =>
           media: { where: { type: 'IMAGE' }, orderBy: { order: 'asc' }, take: 40, select: { url: true } },
         },
       }),
-    [],
+    ),
   ),
 )

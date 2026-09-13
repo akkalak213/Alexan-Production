@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import type {
   ContentStatus,
@@ -11,6 +11,7 @@ import type {
 } from '@/generated/prisma/enums'
 import { db } from '@/lib/db'
 import type { AdminActionState } from './admin-state'
+import type { CacheTag } from './cache'
 import {
   boolean,
   integer,
@@ -33,9 +34,22 @@ import {
 /**
  * Action ของ CMS ทั้งหมด
  *
- * รูปแบบเดียวกันทุกตัว: เช็คสิทธิ์ → อ่าน formData → เขียนฐานข้อมูล → revalidate หน้าสาธารณะ
+ * รูปแบบเดียวกันทุกตัว: เช็คสิทธิ์ → อ่าน formData → เขียนฐานข้อมูล → ล้างแคช
  * สร้างใหม่จะ redirect กลับไปหน้ารายการ ส่วนการแก้จะคืน state ให้แสดงข้อความในหน้าเดิม
+ *
+ * การเขียนที่มีหลายขั้น (แก้ระเบียนแล้วแทนที่รายการลูกทั้งชุด) อยู่ในทรานแซกชันเดียวเสมอ
+ * ถ้าล้มกลางทาง ของเดิมต้องอยู่ครบ ไม่ใช่เหลือระเบียนที่ลูกหายไปครึ่งหนึ่ง
  */
+
+/**
+ * ล้างข้อมูลที่หน้าเว็บสาธารณะแคชไว้ (ดู server/cache.ts)
+ *
+ * ใช้ updateTag ไม่ใช่ revalidateTag เพราะคนกดบันทึกมักเปิดหน้าเว็บดูผลต่อทันที
+ * updateTag ทำให้คำขอถัดไปรอข้อมูลใหม่ ไม่เสิร์ฟของเก่าให้เห็นอีกหนึ่งรอบ
+ */
+function refreshPublicData(...tags: CacheTag[]) {
+  for (const tag of tags) updateTag(tag)
+}
 
 /**
  * ล้างแคชหน้าสาธารณะ
@@ -60,11 +74,13 @@ function revalidateAdmin(...paths: string[]) {
 
 function failure(error: unknown, label: string): AdminActionState {
   console.error(`[cms:${label}]`, error)
-  const message =
-    error instanceof Error && error.message.includes('Unique constraint')
-      ? 'มีรายการที่ใช้ slug นี้อยู่แล้ว กรุณาเปลี่ยน slug'
-      : 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'
-  return { status: 'error', message }
+  const isDuplicate =
+    (typeof error === 'object' && error !== null && (error as { code?: string }).code === 'P2002') ||
+    (error instanceof Error && error.message.includes('Unique constraint'))
+  return {
+    status: 'error',
+    message: isDuplicate ? 'มีรายการที่ใช้ slug นี้อยู่แล้ว กรุณาเปลี่ยน slug' : 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง',
+  }
 }
 
 // ─────────────────────────── ผลงาน ───────────────────────────
@@ -141,6 +157,8 @@ export async function saveProject(
   }
 
   try {
+    const serviceId = await serviceIdFor(data.category)
+
     if (id) {
       const existing = await db.project.findUnique({
         where: { id },
@@ -151,25 +169,29 @@ export async function saveProject(
         return { status: 'error', message: STALE_WRITE_MESSAGE }
       }
 
-      const updated = await db.project.update({
-        where: { id },
-        data: {
-          ...data,
-          serviceId: await serviceIdFor(data.category),
-          publishedAt:
-            status === 'PUBLISHED' ? (existing.publishedAt ?? new Date()) : null,
-        },
-        select: { updatedAt: true },
+      // แกลเลอรีแทนที่ทั้งชุด ในทรานแซกชันเดียวกับตัวผลงาน ภาพเดิมจึงไม่หายถ้าบันทึกล้มกลางทาง
+      const updated = await db.$transaction(async (tx) => {
+        const saved = await tx.project.update({
+          where: { id },
+          data: {
+            ...data,
+            serviceId,
+            publishedAt: status === 'PUBLISHED' ? (existing.publishedAt ?? new Date()) : null,
+          },
+          select: { updatedAt: true },
+        })
+
+        await tx.projectMedia.deleteMany({ where: { projectId: id } })
+        if (mediaUrls.length) {
+          await tx.projectMedia.createMany({
+            data: mediaUrls.map((url, index) => ({ projectId: id, url, order: index })),
+          })
+        }
+
+        return saved
       })
 
-      // แกลเลอรีแทนที่ทั้งชุด — ง่ายกว่าและตรงกับที่ผู้ใช้เห็นในฟอร์ม
-      await db.projectMedia.deleteMany({ where: { projectId: id } })
-      if (mediaUrls.length) {
-        await db.projectMedia.createMany({
-          data: mediaUrls.map((url, index) => ({ projectId: id, url, order: index })),
-        })
-      }
-
+      refreshPublicData('projects')
       revalidateSite('/[locale]/work', '/[locale]/work/[slug]', '/[locale]')
       revalidateAdmin('/admin/projects', `/admin/projects/${id}`, '/admin')
       return {
@@ -182,7 +204,7 @@ export async function saveProject(
     const created = await db.project.create({
       data: {
         ...data,
-        serviceId: await serviceIdFor(data.category),
+        serviceId,
         authorId: user.id,
         media: {
           create: mediaUrls.map((url, index) => ({ url, order: index })),
@@ -190,6 +212,7 @@ export async function saveProject(
       },
     })
 
+    refreshPublicData('projects')
     revalidateSite('/[locale]/work', '/[locale]/work/[slug]', '/[locale]')
     revalidateAdmin('/admin/projects', '/admin')
     redirect(`/admin/projects/${created.id}`)
@@ -199,8 +222,6 @@ export async function saveProject(
     if (typeof error === 'object' && error !== null && 'digest' in error) throw error
     return failure(error, 'saveProject')
   }
-
-  return { status: 'success' }
 }
 
 export async function deleteProject(formData: FormData) {
@@ -213,6 +234,7 @@ export async function deleteProject(formData: FormData) {
     console.error('[cms:deleteProject]', error)
   }
 
+  refreshPublicData('projects')
   revalidateSite('/[locale]/work', '/[locale]/work/[slug]', '/[locale]')
   revalidateAdmin('/admin/projects', '/admin')
   redirect('/admin/projects')
@@ -231,6 +253,13 @@ export async function saveEquipment(
   const model = text(formData, 'model')
   if (!brand || !model) return { status: 'error', message: 'ต้องกรอกยี่ห้อและรุ่น' }
 
+  const dailyRate = number(formData, 'dailyRate')
+  const weeklyRate = number(formData, 'weeklyRate')
+  const depositAmount = number(formData, 'depositAmount')
+  if ([dailyRate, weeklyRate, depositAmount].some((value) => value !== null && value < 0)) {
+    return { status: 'error', message: 'ค่าเช่าและเงินมัดจำต้องไม่ติดลบ' }
+  }
+
   const nameTh = text(formData, 'nameTh') || `${brand} ${model}`
 
   const data = {
@@ -243,12 +272,12 @@ export async function saveEquipment(
     descriptionTh: optionalText(formData, 'descriptionTh'),
     descriptionEn: optionalText(formData, 'descriptionEn'),
     specs: pairs(formData, 'specs', 'label', 'value'),
-    dailyRate: number(formData, 'dailyRate'),
-    weeklyRate: number(formData, 'weeklyRate'),
-    depositAmount: number(formData, 'depositAmount'),
+    dailyRate,
+    weeklyRate,
+    depositAmount,
     image: optionalText(formData, 'image'),
     gallery: list(formData, 'gallery'),
-    quantity: integer(formData, 'quantity', 1),
+    quantity: Math.max(1, integer(formData, 'quantity', 1)),
     status: text(formData, 'status') as EquipmentStatus,
     isFeatured: boolean(formData, 'isFeatured'),
     isActive: boolean(formData, 'isActive'),
@@ -272,7 +301,8 @@ export async function saveEquipment(
         select: { updatedAt: true },
       })
 
-      revalidateSite('/[locale]/rental')
+      refreshPublicData('equipment')
+      revalidateSite('/[locale]/rental', '/[locale]/rental/[slug]', '/[locale]')
       revalidateAdmin('/admin/equipment', `/admin/equipment/${id}`)
       return {
         status: 'success',
@@ -282,15 +312,14 @@ export async function saveEquipment(
     }
 
     await db.equipment.create({ data })
-    revalidateSite('/[locale]/rental')
+    refreshPublicData('equipment')
+    revalidateSite('/[locale]/rental', '/[locale]/rental/[slug]', '/[locale]')
     revalidateAdmin('/admin/equipment')
     redirect('/admin/equipment')
   } catch (error) {
     if (typeof error === 'object' && error !== null && 'digest' in error) throw error
     return failure(error, 'saveEquipment')
   }
-
-  return { status: 'success' }
 }
 
 export async function deleteEquipment(formData: FormData) {
@@ -302,7 +331,8 @@ export async function deleteEquipment(formData: FormData) {
     console.error('[cms:deleteEquipment]', error)
   }
 
-  revalidateSite('/[locale]/rental')
+  refreshPublicData('equipment')
+  revalidateSite('/[locale]/rental', '/[locale]/rental/[slug]', '/[locale]')
   revalidateAdmin('/admin/equipment')
   redirect('/admin/equipment')
 }
@@ -351,6 +381,8 @@ export async function saveService(
     return failure(error, 'saveService')
   }
 
+  // ชื่อบริการขึ้นในหน้าผลงานด้วย (ลิงก์บริการที่เกี่ยวข้อง)
+  refreshPublicData('services', 'projects')
   revalidateSite('/[locale]/services', '/[locale]/services/[slug]', '/[locale]')
   revalidateAdmin('/admin/services', `/admin/services/${id}`)
   return { status: 'success', message: 'บันทึกบริการแล้ว', version: versionOf(updatedAt) }
@@ -401,6 +433,13 @@ export async function saveServicePackages(
     }))
     .filter((row) => row.nameTh)
 
+  const badPrice = rows.find(
+    (row) => row.priceFrom !== null && (!Number.isFinite(row.priceFrom) || row.priceFrom < 0),
+  )
+  if (badPrice) {
+    return { status: 'error', message: `ราคาของแพ็กเกจ "${badPrice.nameTh}" ต้องเป็นตัวเลขที่ไม่ติดลบ` }
+  }
+
   /**
    * การบันทึกนี้ลบแพ็กเกจเดิมทิ้งทั้งชุดแล้วสร้างใหม่ — เป็น action ที่ทำลายข้อมูลมากที่สุดใน CMS
    * ถ้าหน้าที่กดบันทึกเป็นภาพเก่า แพ็กเกจที่คนอื่นเพิ่งเพิ่มจะหายไปโดยไม่มีใครรู้
@@ -421,6 +460,7 @@ export async function saveServicePackages(
     return failure(error, 'saveServicePackages')
   }
 
+  refreshPublicData('services')
   revalidateSite('/[locale]/services', '/[locale]/services/[slug]', '/[locale]')
   revalidateAdmin('/admin/services', `/admin/services/${serviceId}`)
   return {
@@ -482,6 +522,7 @@ export async function savePost(
         },
       })
 
+      refreshPublicData('posts')
       revalidateSite('/[locale]/blog', '/[locale]/blog/[slug]', '/[locale]')
       revalidateAdmin('/admin/posts', `/admin/posts/${id}`)
       return {
@@ -499,6 +540,7 @@ export async function savePost(
       },
     })
 
+    refreshPublicData('posts')
     revalidateSite('/[locale]/blog', '/[locale]/blog/[slug]', '/[locale]')
     revalidateAdmin('/admin/posts')
     redirect(`/admin/posts/${created.id}`)
@@ -506,8 +548,6 @@ export async function savePost(
     if (typeof error === 'object' && error !== null && 'digest' in error) throw error
     return failure(error, 'savePost')
   }
-
-  return { status: 'success' }
 }
 
 export async function deletePost(formData: FormData) {
@@ -519,6 +559,7 @@ export async function deletePost(formData: FormData) {
     console.error('[cms:deletePost]', error)
   }
 
+  refreshPublicData('posts')
   revalidateSite('/[locale]/blog', '/[locale]/blog/[slug]', '/[locale]')
   revalidateAdmin('/admin/posts')
   redirect('/admin/posts')
@@ -579,6 +620,7 @@ export async function saveTeamMember(
     return failure(error, 'saveTeamMember')
   }
 
+  refreshPublicData('team')
   revalidateSite('/[locale]/about')
   revalidateAdmin('/admin/team')
   return { status: 'success', message: 'บันทึกข้อมูลทีมงานแล้ว', version }
@@ -593,6 +635,7 @@ export async function deleteTeamMember(formData: FormData) {
     console.error('[cms:deleteTeamMember]', error)
   }
 
+  refreshPublicData('team')
   revalidateSite('/[locale]/about')
   revalidateAdmin('/admin/team')
 }
@@ -619,6 +662,12 @@ export async function saveSettings(
   })
   if (badUrls.length) {
     return { status: 'error', message: `${badUrls.join(', ')} ${URL_FIELD_MESSAGE}` }
+  }
+
+  const defaultVatRate = number(formData, 'quote_defaultVatRate') ?? 7
+  const defaultWithholdingRate = number(formData, 'quote_defaultWithholdingRate') ?? 3
+  if ([defaultVatRate, defaultWithholdingRate].some((rate) => rate < 0 || rate > 100)) {
+    return { status: 'error', message: 'อัตรา VAT และภาษีหัก ณ ที่จ่าย ต้องอยู่ระหว่าง 0 ถึง 100%' }
   }
 
   const company = {
@@ -656,9 +705,9 @@ export async function saveSettings(
   }
 
   const quote = {
-    defaultValidDays: integer(formData, 'quote_defaultValidDays', 30),
-    defaultVatRate: number(formData, 'quote_defaultVatRate') ?? 7,
-    defaultWithholdingRate: number(formData, 'quote_defaultWithholdingRate') ?? 3,
+    defaultValidDays: Math.max(1, integer(formData, 'quote_defaultValidDays', 30)),
+    defaultVatRate,
+    defaultWithholdingRate,
     termsTh: text(formData, 'quote_termsTh'),
     termsEn: text(formData, 'quote_termsEn'),
     bankName: text(formData, 'quote_bankName'),
@@ -667,7 +716,8 @@ export async function saveSettings(
   }
 
   try {
-    await Promise.all(
+    // สี่กลุ่มบันทึกพร้อมกันหรือไม่บันทึกเลย ไม่ให้เหลือข้อมูลบริษัทใหม่คู่กับค่าตั้งค่าชุดเก่า
+    await db.$transaction(
       Object.entries({ company, social, hero, quote }).map(([key, value]) =>
         db.siteSetting.upsert({ where: { key }, update: { value }, create: { key, value } }),
       ),
@@ -677,6 +727,7 @@ export async function saveSettings(
   }
 
   // ข้อมูลบริษัทอยู่ใน footer ของทุกหน้า จึงต้องล้างแคชทั้งเว็บ
+  refreshPublicData('settings')
   revalidatePath('/', 'layout')
   revalidateAdmin('/admin/settings')
   return { status: 'success', message: 'บันทึกข้อมูลบริษัทแล้ว' }
