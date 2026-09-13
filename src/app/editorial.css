@@ -242,6 +242,8 @@
 .photos-foot > p a:hover { color: hsl(var(--accent)); text-decoration: underline; }
 
 /* ───────────── เช่า: ชั้นวางอุปกรณ์ ───────────── */
+/* อยู่ต่อจากรายการบริการซึ่งพื้นสีเดียวกัน เส้นคั่นบนบอกว่าเป็นอีกส่วน */
+.home-rental { border-top: 1px solid hsl(var(--border)); }
 .rental-head { display: grid; gap: 1rem 4rem; margin-bottom: 2.5rem; }
 .rental-head .home-lede { margin-top: 0; }
 .rental-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.5rem; }

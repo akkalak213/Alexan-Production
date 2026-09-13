@@ -40,9 +40,9 @@ export const dynamic = 'force-dynamic'
  *
  *   เปิดหน้า       เราคือใคร + ฉากสตูดิโอที่ขยับได้ (ฉากนี้มีที่นี่ที่เดียว)
  *   รายการบริการ   ทำอะไรได้บ้าง เริ่มต้นที่เท่าไหร่
+ *   เช่า           อุปกรณ์พร้อมราคาต่อวัน และสิ่งที่มีในสตูดิโอ ต่อจากราคาบริการทันที
  *   งานดิจิทัล     หลักฐานฝั่งเว็บ: หน้าจอจริงของงานหนึ่งชิ้น
  *   งานถ่ายภาพ     หลักฐานฝั่งภาพ: ภาพจริงจากงานถ่าย
- *   เช่า           อุปกรณ์พร้อมราคาต่อวัน และสิ่งที่มีในสตูดิโอ
  *   เริ่มงาน       ขั้นตอนเดียวของทั้งเว็บ ไม่แยกขั้นตอนตามบริการให้ซ้ำกัน
  *
  * ภาพทุกภาพในหน้านี้ไม่ซ้ำกัน รอบก่อนภาพเดียวกันขึ้นสามรอบในหน้าเดียว
@@ -239,89 +239,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
         </section>
       )}
 
-      {/* ───────────── งานดิจิทัล ───────────── */}
-      {digitalCase && shots.length > 0 && (
-        <section id="digital-work" aria-labelledby="case-title" className="home-block home-case">
-          <div className="container case-layout">
-            <div className="case-visual" data-enter>
-              <CaseStudyViewer
-                shots={shots}
-                host={liveHost}
-                listLabel={t('case.shots')}
-                unavailableLabel={unavailableLabel}
-              />
-            </div>
-            <div className="case-copy" data-enter style={{ '--entry-delay': '120ms' } as CSSProperties}>
-              <p className="section-eyebrow">{t('case.eyebrow')}</p>
-              <h2 id="case-title" className="home-h2 case-title font-display">
-                {isThai ? digitalCase.titleTh : digitalCase.titleEn}
-              </h2>
-              <p className="case-meta">
-                <span>{tCat(digitalCase.category)}</span>
-                {digitalCase.year && <span>{digitalCase.year}</span>}
-                {digitalCase.clientName && <span>{digitalCase.clientName}</span>}
-              </p>
-              <p className="home-lede case-summary">{isThai ? digitalCase.summaryTh : digitalCase.summaryEn}</p>
-              {digitalCase.techStack.length > 0 && (
-                <div className="case-tech">
-                  <p>{tWork('techStack')}</p>
-                  <ul>
-                    {digitalCase.techStack.slice(0, 8).map((tech, index) => (
-                      <li key={`${index}-${tech}`}>{tech}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <div className="case-actions">
-                <Link href={`/work/${digitalCase.slug}`} className={buttonClasses('outline', 'lg')}>
-                  {t('case.details')}
-                  <ArrowUpRight size={18} aria-hidden />
-                </Link>
-                {liveUrl && (
-                  <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="text-link">
-                    {tWork('visitSite')}
-                    <ArrowUpRight size={17} aria-hidden />
-                  </a>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ───────────── งานถ่ายภาพ ───────────── */}
-      {photos.length >= 3 && (
-        <section id="photography" aria-labelledby="photos-title" className="home-block home-photos studio-panel">
-          <div className="container">
-            <div className="photos-head" data-enter>
-              <div>
-                <p className="section-eyebrow">{t('photos.eyebrow')}</p>
-                <h2 id="photos-title" className="home-h2 font-display">
-                  {t('photos.title')}
-                </h2>
-              </div>
-              <p className="home-lede">{t('photos.subtitle')}</p>
-            </div>
-            <PhotoMosaic photos={photos} unavailableLabel={unavailableLabel} />
-            <div className="photos-foot">
-              <p>
-                {t('photos.from')}
-                {photoSources.map(([href, title]) => (
-                  <Link key={href} href={href}>
-                    {title}
-                    <ArrowUpRight size={15} aria-hidden />
-                  </Link>
-                ))}
-              </p>
-              <Link href={{ pathname: '/work', query: { category: 'PHOTOGRAPHY' } }} className="text-link">
-                {t('photos.all')}
-                <ArrowUpRight size={17} aria-hidden />
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* ───────────── สตูดิโอและเช่าอุปกรณ์ ───────────── */}
       <section id="rental" aria-labelledby="rental-title" className="home-block home-rental">
         <div className="container">
@@ -424,6 +341,89 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
           )}
         </div>
       </section>
+
+      {/* ───────────── งานดิจิทัล ───────────── */}
+      {digitalCase && shots.length > 0 && (
+        <section id="digital-work" aria-labelledby="case-title" className="home-block home-case">
+          <div className="container case-layout">
+            <div className="case-visual" data-enter>
+              <CaseStudyViewer
+                shots={shots}
+                host={liveHost}
+                listLabel={t('case.shots')}
+                unavailableLabel={unavailableLabel}
+              />
+            </div>
+            <div className="case-copy" data-enter style={{ '--entry-delay': '120ms' } as CSSProperties}>
+              <p className="section-eyebrow">{t('case.eyebrow')}</p>
+              <h2 id="case-title" className="home-h2 case-title font-display">
+                {isThai ? digitalCase.titleTh : digitalCase.titleEn}
+              </h2>
+              <p className="case-meta">
+                <span>{tCat(digitalCase.category)}</span>
+                {digitalCase.year && <span>{digitalCase.year}</span>}
+                {digitalCase.clientName && <span>{digitalCase.clientName}</span>}
+              </p>
+              <p className="home-lede case-summary">{isThai ? digitalCase.summaryTh : digitalCase.summaryEn}</p>
+              {digitalCase.techStack.length > 0 && (
+                <div className="case-tech">
+                  <p>{tWork('techStack')}</p>
+                  <ul>
+                    {digitalCase.techStack.slice(0, 8).map((tech, index) => (
+                      <li key={`${index}-${tech}`}>{tech}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="case-actions">
+                <Link href={`/work/${digitalCase.slug}`} className={buttonClasses('outline', 'lg')}>
+                  {t('case.details')}
+                  <ArrowUpRight size={18} aria-hidden />
+                </Link>
+                {liveUrl && (
+                  <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="text-link">
+                    {tWork('visitSite')}
+                    <ArrowUpRight size={17} aria-hidden />
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ───────────── งานถ่ายภาพ ───────────── */}
+      {photos.length >= 3 && (
+        <section id="photography" aria-labelledby="photos-title" className="home-block home-photos studio-panel">
+          <div className="container">
+            <div className="photos-head" data-enter>
+              <div>
+                <p className="section-eyebrow">{t('photos.eyebrow')}</p>
+                <h2 id="photos-title" className="home-h2 font-display">
+                  {t('photos.title')}
+                </h2>
+              </div>
+              <p className="home-lede">{t('photos.subtitle')}</p>
+            </div>
+            <PhotoMosaic photos={photos} unavailableLabel={unavailableLabel} />
+            <div className="photos-foot">
+              <p>
+                {t('photos.from')}
+                {photoSources.map(([href, title]) => (
+                  <Link key={href} href={href}>
+                    {title}
+                    <ArrowUpRight size={15} aria-hidden />
+                  </Link>
+                ))}
+              </p>
+              <Link href={{ pathname: '/work', query: { category: 'PHOTOGRAPHY' } }} className="text-link">
+                {t('photos.all')}
+                <ArrowUpRight size={17} aria-hidden />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ───────────── เริ่มงานกับเรา + คำถามที่พบบ่อย ───────────── */}
       <section id="how-it-works" aria-labelledby="start-title" className="home-block home-start">
