@@ -40,7 +40,7 @@ export function Section({
         {hasHeader && (
           <div
             className={cn(
-              'reveal mb-12 flex flex-col gap-6 md:mb-16',
+              'section-header reveal mb-12 flex flex-col gap-6 md:mb-16',
               align === 'left' ? 'md:flex-row md:items-end md:justify-between' : 'items-center text-center',
             )}
           >
@@ -48,9 +48,9 @@ export function Section({
               {eyebrow && (
                 <p
                   className={cn(
-                    // rule-draw ต่อเส้นสั้น ๆ ใต้ eyebrow แล้วลากออกตอนเลื่อนถึง
-                    'rule-draw mb-4 text-xs font-medium uppercase tracking-[0.18em] text-accent',
-                    align === 'center' && 'after:mx-auto',
+                    // Public layouts add the shared editorial eyebrow rule.
+                    'section-eyebrow mb-4 text-xs font-medium uppercase tracking-[0.18em] text-accent',
+                    align === 'center' && 'justify-center',
                   )}
                 >
                   {eyebrow}

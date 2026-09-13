@@ -1,6 +1,6 @@
 'use client'
 
-import { Menu, X } from 'lucide-react'
+import { ArrowUpRight, Menu, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useRef, useState } from 'react'
 import { Link, usePathname } from '@/i18n/navigation'
@@ -69,7 +69,7 @@ export function SiteHeader() {
   return (
     <header
       className={cn(
-        'sticky top-0 z-50 w-full bg-background/85 backdrop-blur-md transition-shadow duration-300 no-print',
+        'site-header sticky top-0 z-50 w-full bg-background/90 backdrop-blur-md transition-shadow duration-300 no-print',
         isScrolled ? 'border-b border-border shadow-soft' : 'border-b border-transparent',
       )}
     >
@@ -143,18 +143,20 @@ export function SiteHeader() {
           </button>
         </div>
         <nav aria-label={t('menu')} className="container flex flex-col py-4">
-          {navItems.map((item) => (
+          {navItems.map((item, index) => (
             <Link
               key={item.key}
               href={item.href}
               onClick={closeMenu}
               aria-current={isActive(item.href) ? 'page' : undefined}
               className={cn(
-                'flex min-h-[52px] items-center border-b border-border/60 text-lg transition-colors',
+                'group flex min-h-[64px] items-center gap-5 border-b border-border/60 text-xl transition-colors',
                 isActive(item.href) ? 'text-accent' : 'text-foreground hover:text-accent',
               )}
             >
+              <span aria-hidden className="font-mono text-xs text-muted-foreground">{String(index + 1).padStart(2, '0')}</span>
               {t(item.key)}
+              <ArrowUpRight size={19} aria-hidden className="ml-auto text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
             </Link>
           ))}
 

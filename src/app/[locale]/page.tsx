@@ -1,417 +1,490 @@
-import { ArrowRight, ArrowUpRight, Lightbulb, PackageOpen, SlidersHorizontal, Star } from 'lucide-react'
-import Image from 'next/image'
+import { ArrowUpRight, Check, MessageSquare, SlidersHorizontal } from 'lucide-react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { Fragment, type CSSProperties } from 'react'
 import { Link } from '@/i18n/navigation'
+import type { PriceUnit, ServiceCategory } from '@/generated/prisma/enums'
 import type { Locale } from '@/i18n/routing'
-import { Badge } from '@/components/ui/Badge'
 import { buttonClasses } from '@/components/ui/Button'
 import { Section } from '@/components/ui/Section'
-import { ServiceIcon } from '@/components/ui/ServiceIcon'
+import { Faq } from '@/components/ui/Faq'
+import { ContentImage } from '@/components/ui/ContentImage'
 import { EquipmentIcon } from '@/components/ui/EquipmentIcon'
+import { HomeMotion } from '@/components/home/HomeMotion'
 import { StudioScene } from '@/components/home/StudioScene'
-import { ProjectCard } from '@/components/work/ProjectCard'
+import { StudioStage } from '@/components/home/StudioStage'
+import { ServiceMenu, type ServiceMenuGroup } from '@/components/home/ServiceMenu'
+import { CaseStudyViewer } from '@/components/home/CaseStudyViewer'
+import { PhotoMosaic, type MosaicPhoto } from '@/components/home/PhotoMosaic'
+import { GearRail } from '@/components/home/GearRail'
 import { ReviewCard } from '@/components/reviews/ReviewCard'
 import { getSiteSettings } from '@/lib/settings'
-import { cn } from '@/lib/utils'
+import { equipmentName, formatPrice } from '@/lib/format'
+import { safeExternalUrl } from '@/lib/external-link'
 import { isPlaceholderImage } from '@/lib/sample-content'
 import {
-  getActiveServices,
   getApprovedReviews,
   getEquipment,
-  getFeaturedProjects,
-  getHomeStats,
+  getHomeDigitalCase,
+  getHomePhotos,
+  getHomeServices,
 } from '@/server/queries'
 
 /**
  * เรนเดอร์ตอนมีคนขอ ไม่ prerender ตอน build
- *
- * ตอน build บน Railway ยังต่อฐานข้อมูลไม่ได้ (private network เปิดหลัง deploy)
- * เดิมใช้ ISR โดยหวังว่าหน้าจะรีเฟรชตัวเองหลังขึ้นระบบ แต่ผลจริงคือ
- * หน้าที่ prerender ด้วยข้อมูลเปล่าถูกแคชไว้และเสิร์ฟไปอีกสิบนาทีเต็มหลัง deploy ทุกครั้ง
- * ส่วนที่ผูกกับข้อมูลจึงหายไปทั้งก้อนในช่วงนั้น
- *
- * ฐานข้อมูลอยู่บน private network แล้ว วัดได้ 165ms จากเดิม 859ms
- * การอ่านสดทุกครั้งจึงถูกกว่าการเสี่ยงเสิร์ฟหน้าเปล่า
+ * ตอน build บน Railway ยังต่อฐานข้อมูลไม่ได้ หน้าที่ prerender ด้วยข้อมูลเปล่าจะถูกแคชค้างไว้หลัง deploy
  */
 export const dynamic = 'force-dynamic'
 
+/**
+ * หน้าแรกเล่าเรื่องตามลำดับที่ลูกค้าคิด และของแต่ละชิ้นขึ้นแค่ที่เดียว
+ *
+ *   เปิดหน้า       เราคือใคร + ฉากสตูดิโอที่ขยับได้ (ฉากนี้มีที่นี่ที่เดียว)
+ *   รายการบริการ   ทำอะไรได้บ้าง เริ่มต้นที่เท่าไหร่
+ *   งานดิจิทัล     หลักฐานฝั่งเว็บ: หน้าจอจริงของงานหนึ่งชิ้น
+ *   งานถ่ายภาพ     หลักฐานฝั่งภาพ: ภาพจริงจากงานถ่าย
+ *   เช่า           อุปกรณ์พร้อมราคาต่อวัน และสิ่งที่มีในสตูดิโอ
+ *   เริ่มงาน       ขั้นตอนเดียวของทั้งเว็บ ไม่แยกขั้นตอนตามบริการให้ซ้ำกัน
+ *
+ * ภาพทุกภาพในหน้านี้ไม่ซ้ำกัน รอบก่อนภาพเดียวกันขึ้นสามรอบในหน้าเดียว
+ */
+
+const DIGITAL: readonly ServiceCategory[] = ['WEB', 'WEB_APP', 'MOBILE_APP']
+const VISUAL: readonly ServiceCategory[] = ['PHOTOGRAPHY', 'VIDEO']
+
+/** โมเสกออกแบบไว้ที่เจ็ดช่อง เต็มพอดีทั้งกริดสองคอลัมน์บนมือถือและสี่คอลัมน์บนคอม */
+const MOSAIC_SIZE = 7
+
+const UNIT_KEYS = {
+  PROJECT: 'perProject',
+  DAY: 'perDay',
+  HALF_DAY: 'perHalfDay',
+  HOUR: 'perHour',
+  MONTH: 'perMonth',
+  PERSON: 'perPerson',
+} as const satisfies Record<Exclude<PriceUnit, 'CUSTOM'>, string>
+
+/**
+ * ภาษาไทยไม่เว้นวรรคระหว่างคำ เบราว์เซอร์จึงตัดบรรทัดได้ทุกขอบคำ
+ * หัวเรื่องเคยหักเป็น "เว็บไซต์และงานภาพ ที่ / เล่าเรื่องธุรกิจคุณ"
+ * คนเขียนหัวเรื่องเว้นวรรคไว้ตรงจุดแบ่งวลีอยู่แล้ว บนจอกว้างจึงให้ตัดบรรทัดได้เฉพาะตรงช่องว่างนั้น (ดู .phrase ใน CSS)
+ * จอแคบยังตัดกลางวลีได้ตามปกติ วลียาวจะได้ไม่ล้นจอ
+ */
+function Phrases({ text }: { text: string }) {
+  const parts = text.split(/\s+/).filter(Boolean)
+  return parts.map((part, index) => (
+    <Fragment key={index}>
+      <span className="phrase">{part}</span>
+      {index < parts.length - 1 && ' '}
+    </Fragment>
+  ))
+}
+
+/**
+ * หยิบของกระจายให้ทั่วทั้งชุด ไม่ใช่หยิบตัวแรก ๆ ติดกัน
+ *
+ * ภาพงานถ่ายเรียงตามเวลา ช่วงต้นชุดมักเป็นมุมเดียวกันหลายช็อต เช่นป้ายชื่อบ่าวสาว
+ * รอบก่อนหยิบภาพแรก ๆ ติดกัน โมเสกเจ็ดช่องเลยมีป้ายเดียวกันสามภาพ
+ */
+function spreadOut<T>(items: T[], count: number): T[] {
+  if (items.length <= count) return items
+  const step = items.length / count
+  return Array.from({ length: count }, (_, index) => items[Math.floor(index * step)])
+}
 
 export default async function HomePage({ params }: { params: Promise<{ locale: Locale }> }) {
   const { locale } = await params
   setRequestLocale(locale)
-
-  const [t, tc, tEquip, tCat, settings, services, stats, equipment, featured, reviews] =
+  const [t, tc, tWork, tContact, tCat, tEquip, settings, services, equipment, digitalCase, photoProjects, reviews] =
     await Promise.all([
       getTranslations('home'),
       getTranslations('common'),
-      getTranslations('equipmentCategory'),
+      getTranslations('work'),
+      getTranslations('contact'),
       getTranslations('serviceCategory'),
+      getTranslations('equipmentCategory'),
       getSiteSettings(),
-      getActiveServices(),
-      getHomeStats(),
+      getHomeServices(),
       getEquipment(),
-      getFeaturedProjects(4),
+      getHomeDigitalCase(),
+      getHomePhotos(),
       getApprovedReviews(3),
     ])
-
   const isThai = locale === 'th'
-  const { hero } = settings
+  const unavailableLabel = tc('imageUnavailable')
 
-  /**
-   * ผลงานชิ้นแรกที่มีรูปปกจริงใช้เป็นภาพใน hero ที่เหลือไปอยู่ส่วนผลงานเด่นด้านล่าง
-   * ถ้าไม่มีผลงานเลย hero จะเหลือคอลัมน์เดียวแทนที่จะมีช่องว่างค้างไว้
-   *
-   * ต้องเช็ครูปปกด้วย ไม่ใช่หยิบชิ้นแรกมาดื้อ ๆ — ชิ้นที่รูปปกว่างจะทำให้ next/image ล้มทั้งหน้า
-   * และถ้าข้ามไปเฉย ๆ ผลงานชิ้นนั้นจะหายไปจากหน้าแรกทั้งที่ตั้งเป็นผลงานเด่นไว้
-   */
-  const heroIndex = featured.findIndex((project) => project.coverImage && !isPlaceholderImage(project.coverImage))
-  const heroProject = heroIndex >= 0 ? featured[heroIndex] : null
-  const restFeatured = featured.filter((_, index) => index !== heroIndex)
-
-  /**
-   * จัดอุปกรณ์เข้าหมวดจากข้อมูลจริงในคลัง ไม่ได้เขียนรายการไว้ตายตัว
-   * เพิ่มหรือลดของในหลังบ้านเมื่อไหร่ หน้าแรกก็เปลี่ยนตามเอง
-   */
-  const gearByCategory = equipment.reduce<
-    Record<string, { count: number; models: string[] }>
-  >((acc, item) => {
-    const group = (acc[item.category] ??= { count: 0, models: [] })
-    group.count += 1
-    if (group.models.length < 2) group.models.push(`${item.brand} ${item.model}`)
-    return acc
-  }, {})
-
-  const gearGroups = Object.entries(gearByCategory).sort((a, b) => b[1].count - a[1].count)
-
-  // ชื่อรุ่นทั้งหมดสำหรับแถบเลื่อน ทำซ้ำสองชุดเพื่อให้วนแล้วไม่เห็นรอยต่อ
-  const gearNames = equipment.map((item) => `${item.brand} ${item.model}`)
-
-  const studioPoints = [
-    { icon: PackageOpen, title: t('studioPointGearTitle'), text: t('studioPointGearText') },
-    { icon: Lightbulb, title: t('studioPointLightTitle'), text: t('studioPointLightText') },
-    { icon: SlidersHorizontal, title: t('studioPointRentTitle'), text: t('studioPointRentText') },
+  // ───── บริการและราคาเริ่มต้น ─────
+  type HomeService = (typeof services)[number]
+  const priceOf = (service: HomeService) => {
+    const pkg = service.packages[0]
+    if (!pkg) return undefined
+    if (pkg.priceUnit === 'CUSTOM') return { amount: tc('customPrice') }
+    const amount = formatPrice(pkg.priceFrom, locale)
+    return amount ? { from: tc('startingFrom'), amount, unit: tc(UNIT_KEYS[pkg.priceUnit]) } : { amount: tc('customPrice') }
+  }
+  const toMenuItem = (service: HomeService) => ({
+    id: service.id,
+    href: `/services/${service.slug}`,
+    icon: service.icon,
+    title: isThai ? service.titleTh : service.titleEn,
+    tagline: isThai ? service.taglineTh : service.taglineEn,
+    price: priceOf(service),
+  })
+  const menu: ServiceMenuGroup[] = [
+    { id: 'digital', label: t('groups.digital'), items: services.filter((s) => DIGITAL.includes(s.category)).map(toMenuItem) },
+    { id: 'visual', label: t('groups.visual'), items: services.filter((s) => VISUAL.includes(s.category)).map(toMenuItem) },
   ]
+  // บริการสตูดิโอไม่อยู่ในรายการราคา ไปอยู่กับส่วนเช่าที่มันเกี่ยวข้องจริง
+  const studioService = services.find((service) => service.category === 'STUDIO')
+  const studioPrice = studioService && priceOf(studioService)
+  const studioFacts = studioService ? (isThai ? studioService.highlightsTh : studioService.highlightsEn) : []
+
+  // ───── งานดิจิทัล: ภาพหน้าจอจริง ถ้าไม่มีภาพเพิ่มเติมก็ใช้รูปปก ─────
+  const rawShots: { id: string; url: string; alt: string | null }[] = !digitalCase
+    ? []
+    : digitalCase.media.length > 0
+      ? digitalCase.media.map(({ id, url, altTh, altEn }) => ({ id, url, alt: isThai ? altTh : altEn }))
+      : [{ id: 'cover', url: digitalCase.coverImage, alt: null }]
+  const shots = rawShots
+    .filter((shot) => !isPlaceholderImage(shot.url))
+    .map((shot, index, all) => ({
+      id: shot.id,
+      url: shot.url,
+      label: shot.alt || t('case.shot', { n: index + 1, total: all.length }),
+    }))
+  const liveUrl = safeExternalUrl(digitalCase?.liveUrl)
+  const liveHost = liveUrl ? new URL(liveUrl).hostname.replace(/^www\./, '') : undefined
+
+  // ───── งานถ่ายภาพ: หยิบกระจายทั่วแต่ละชุด แล้วสลับงานละภาพ ภาพติดกันจึงมาจากคนละงาน ─────
+  const perProject = Math.ceil(MOSAIC_SIZE / Math.max(photoProjects.length, 1))
+  const queues = photoProjects.map((project) => ({
+    href: `/work/${project.slug}`,
+    title: isThai ? project.titleTh : project.titleEn,
+    urls: spreadOut(
+      (project.media.length > 0 ? project.media.map((media) => media.url) : [project.coverImage]).filter(
+        (url) => !isPlaceholderImage(url),
+      ),
+      perProject,
+    ),
+  }))
+  const photos: MosaicPhoto[] = []
+  for (let round = 0; photos.length < MOSAIC_SIZE && queues.some((queue) => round < queue.urls.length); round++) {
+    for (const queue of queues) {
+      const url = queue.urls[round]
+      if (url && photos.length < MOSAIC_SIZE) photos.push({ key: `${queue.href}-${round}`, url, href: queue.href, title: queue.title })
+    }
+  }
+  const photoSources = [...new Map(photos.map((photo) => [photo.href, photo.title])).entries()]
+
+  // ของที่ไม่ว่างยังดูได้ในหน้าเช่า หน้าแรกโชว์เฉพาะที่เช่าได้ตอนนี้ ราคาที่เห็นจึงจองได้จริง
+  const gear = equipment.filter((item) => item.status === 'AVAILABLE')
+
+  const steps = [
+    { icon: MessageSquare, title: t('process.step1.title'), text: t('process.step1.text') },
+    { icon: SlidersHorizontal, title: t('process.step2.title'), text: t('process.step2.text') },
+    { icon: Check, title: t('process.step3.title'), text: t('process.step3.text') },
+  ]
+  const faq = ([1, 2, 3] as const).map((index) => ({ question: t(`faq.q${index}`), answer: t(`faq.a${index}`) }))
 
   return (
-    <>
-      {/* ───────────── Hero ───────────── */}
-      <section className="grain relative overflow-hidden border-b border-border">
-        {/* แสงนวลจากมุมบนขวา เลียนแบบไฟคีย์ในสตูดิโอ ขยับช้ามากให้ฉากไม่นิ่งสนิท */}
-        <div
-          aria-hidden
-          className="keylight pointer-events-none absolute -right-1/4 -top-1/2 h-[130%] w-[80%] rounded-full bg-accent/10 blur-[120px]"
-        />
-
-        <div
-          className={cn(
-            "container relative grid gap-8 py-10 md:py-16 lg:items-center lg:gap-16 lg:py-20",
-            heroProject && "lg:grid-cols-[1.15fr_1fr]",
-          )}
-        >
-          {/* stage ไล่จังหวะให้ลูกทีละชิ้น หัวเรื่องเปิดแบบม่านรูดขึ้นแยกต่างหาก */}
-          <div className="hero-stage min-w-0">
-            <p className="mb-5 text-sm font-medium uppercase tracking-[0.16em] text-accent">
-              {isThai ? hero.eyebrowTh : hero.eyebrowEn}
-            </p>
-
-            <h1 className="hero-title font-display text-balance">
-              {isThai ? hero.headlineTh : hero.headlineEn}
-            </h1>
-
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground text-pretty">
-              {isThai ? hero.subheadlineTh : hero.subheadlineEn}
-            </p>
-
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/contact" className={buttonClasses('accent', 'lg')}>
-                {tc('getQuote')}
-                <ArrowRight size={18} strokeWidth={1.75} />
-              </Link>
-              <Link href="/work" className={buttonClasses('outline', 'lg')}>
-                {tc('viewWork')}
-              </Link>
-            </div>
-
-          </div>
-
-          {/*
-            เดิมตรงนี้เป็นกล่องเปล่าเขียนว่า Showreel · 2026 ซึ่งเป็นที่จองไว้รอวิดีโอโชว์รีล
-            แต่โชว์รีลยังไม่มี กล่องจึงกลายเป็นการโฆษณาของที่ยังไม่มีอยู่จริง
-            เปลี่ยนเป็นผลงานเด่นชิ้นแรกจากฐานข้อมูล กดแล้วไปหน้าผลงานได้เลย
-          */}
-          {heroProject && (
-            <Link
-              href={`/work/${heroProject.slug}`}
-              className="group relative block aspect-[4/3] overflow-hidden rounded-lg border border-border bg-subtle lg:aspect-[4/5]"
-            >
-              <Image
-                src={heroProject.coverImage}
-                alt=""
-                fill
-                priority
-                sizes="(min-width: 1024px) 40vw, 100vw"
-                placeholder={heroProject.coverBlurData ? 'blur' : 'empty'}
-                blurDataURL={heroProject.coverBlurData ?? undefined}
-                className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
-              />
-              {/* ไล่สีทึบที่ก้นภาพ ตัวหนังสือจึงอ่านออกไม่ว่าภาพข้างล่างจะสว่างแค่ไหน */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[hsl(240_20%_4%/0.88)] via-[hsl(240_20%_4%/0.15)] to-transparent" />
-              <div className="absolute inset-x-7 bottom-7">
-                <p className="text-sm font-medium uppercase tracking-[0.12em] text-white/80">
-                  {tCat(heroProject.category)}
-                </p>
-                <p className="mt-1.5 font-display text-2xl text-balance text-white">
-                  {isThai ? heroProject.titleTh : heroProject.titleEn}
-                </p>
-              </div>
+    <HomeMotion>
+      {/* ───────────── เปิดหน้า ───────────── */}
+      <section className="home-hero studio-panel" aria-labelledby="home-title">
+        <div className="container hero-inner">
+          <p className="hero-eyebrow">
+            <span aria-hidden />
+            Alexan Production · {t('heroLocation')}
+          </p>
+          <h1 id="home-title" className="hero-title font-display text-balance">
+            <Phrases text={isThai ? settings.hero.headlineTh : settings.hero.headlineEn} />
+          </h1>
+          <p className="hero-description">{t('intro')}</p>
+          <div className="hero-actions">
+            <Link href="/contact" className={buttonClasses('accent', 'lg')}>
+              {tc('getQuote')}
+              <ArrowUpRight size={19} aria-hidden />
             </Link>
-          )}
+            <Link href="/work" className={buttonClasses('outline', 'lg')}>
+              {tc('viewWork')}
+            </Link>
+          </div>
+          <p className="hero-reassurance">
+            <Check size={16} aria-hidden />
+            {t('introNote')}
+          </p>
         </div>
-        <div className="container pb-10 md:pb-16">
-            {services.length > 0 && (
-              <nav aria-label={t('servicesEyebrow')} className="mt-8 flex flex-wrap gap-2">
-                {services.map((service) => (
-                  <Link
-                    key={service.id}
-                    href={`/services/${service.slug}`}
-                    className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-surface/80 px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-accent/50 hover:text-foreground"
-                  >
-                    {isThai ? service.titleTh : service.titleEn}
-                    <ArrowUpRight size={14} aria-hidden />
-                  </Link>
-                ))}
-              </nav>
-            )}
 
-            {(stats.projects > 0 || stats.reviewCount > 0) && (
-              <dl className="mt-8 flex flex-wrap gap-8 border-t border-border pt-6">
-                {stats.projects > 0 && <div><dt className="text-sm text-muted-foreground">{t('statsProjects')}</dt><dd className="tabular mt-1 font-display text-3xl">{stats.projects}</dd></div>}
-                {stats.reviewCount > 0 && <div><dt className="text-sm text-muted-foreground">{t('statsRating')}</dt><dd className="tabular mt-1 flex items-center gap-2 font-display text-3xl">{stats.averageRating.toFixed(1)}<Star size={16} className="fill-accent text-accent" aria-hidden /></dd></div>}
-              </dl>
-            )}
-        </div>
+        <StudioStage pauseLabel={t('motionPause')} playLabel={t('motionPlay')}>
+          <StudioScene label={t('studioSceneLabel')} />
+        </StudioStage>
       </section>
 
-      {/* ───────────── บริการ ───────────── */}
-      <Section
-        id="services"
-        tone="subtle"
-        eyebrow={t('servicesEyebrow')}
-        title={t('servicesTitle')}
-        subtitle={t('servicesSubtitle')}
-        action={
-          <Link href="/services" className={buttonClasses('outline', 'md')}>
-            {tc('viewAll')}
-          </Link>
-        }
-      >
-        {services.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border py-16 text-center text-sm text-muted-foreground">
-            {tc('empty')}
-          </p>
-        ) : (
-          <ul className="reveal-stagger grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
-            {services.map((service) => (
-              <li key={service.id} className="bg-background">
-                <Link
-                  href={`/services/${service.slug}`}
-                  className={cn(
-                    'group relative flex h-full flex-col gap-4 p-8 transition-colors hover:bg-subtle',
-                    // เส้นสีเน้นลากผ่านขอบบนตอนชี้ แทนการยกการ์ดขึ้นซึ่งจะทำให้รอยต่อกริดแยกออกจากกัน
-                    'before:absolute before:inset-x-0 before:top-0 before:h-px before:origin-left',
-                    'before:scale-x-0 before:bg-accent before:transition-transform before:duration-300',
-                    'before:ease-out hover:before:scale-x-100',
-                  )}
-                >
-                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-md bg-accent-subtle text-accent transition-transform duration-300 ease-out group-hover:-translate-y-0.5 group-hover:scale-105">
-                    <ServiceIcon name={service.icon} size={20} strokeWidth={1.6} />
-                  </span>
-                  <h3 className="font-display text-2xl">
-                    {isThai ? service.titleTh : service.titleEn}
-                  </h3>
-                  <p className="flex-1 text-base leading-relaxed text-muted-foreground text-pretty">
-                    {isThai ? service.taglineTh : service.taglineEn}
-                  </p>
-                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-accent">
-                    {tc('learnMore')}
-                    <ArrowUpRight
-                      size={15}
-                      strokeWidth={2}
-                      aria-hidden
-                      className="transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-                    />
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      {/* ───────────── ในสตูดิโอ ───────────── */}
-      {/*
-        border-y เพื่อให้ยังเห็นรอยต่อในโหมดมืด ที่พื้นหน้ากับพื้นแผงต่างกันแค่ไม่กี่เปอร์เซ็นต์
-
-        ส่วนนี้ไม่ผูกกับข้อมูลในฐานข้อมูล ภาพฉากกับคำอธิบายขึ้นเสมอ
-        มีแต่รายการหมวดอุปกรณ์ที่ซ่อนเมื่อคลังว่าง ตอนแรกครอบเงื่อนไขไว้ทั้งก้อน
-        พอ build บน Railway ต่อฐานข้อมูลไม่ได้ ทั้งส่วนเลยหายไปจากหน้าจริงทั้งดุ้น
-      */}
-      <section className="studio-panel relative overflow-hidden border-y border-border">
-        <div className="container relative pb-14 pt-20 md:pb-16 md:pt-28">
-          <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-20">
-            <div className="reveal">
-              <p className="rule-draw mb-4 text-xs font-medium uppercase tracking-[0.18em] text-accent">
-                {t('studioEyebrow')}
-              </p>
-              <h2 className="font-display text-display-md text-balance">{t('studioTitle')}</h2>
-              <p className="mt-5 text-lg leading-relaxed text-muted-foreground text-pretty">
-                {t('studioSubtitle')}
-              </p>
-
-              <dl className="mt-10 flex gap-12 border-t border-border pt-8">
-                <div>
-                  <dt className="text-xs text-muted-foreground">{t('studioStatGear')}</dt>
-                  <dd className="tabular mt-1 font-display text-4xl">{equipment.length}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">{t('studioStatCategories')}</dt>
-                  <dd className="tabular mt-1 font-display text-4xl">{gearGroups.length}</dd>
-                </div>
-              </dl>
+      {/* ───────────── บริการและราคาเริ่มต้น ───────────── */}
+      {menu.some((group) => group.items.length > 0) && (
+        <section id="services" aria-labelledby="services-title" className="home-block home-services">
+          <div className="container services-layout">
+            <div className="services-intro" data-enter>
+              <p className="section-eyebrow">{t('servicesEyebrow')}</p>
+              <h2 id="services-title" className="home-h2 font-display">
+                {t('servicesTitle')}
+              </h2>
+              <p className="home-lede">{t('servicesSubtitle')}</p>
+              <p className="services-note">{t('servicesPriceNote')}</p>
+              <Link href="/services" className="text-link">
+                {t('servicesAll')}
+                <ArrowUpRight size={17} aria-hidden />
+              </Link>
             </div>
+            <ServiceMenu groups={menu} />
+          </div>
+        </section>
+      )}
 
-            {/* จุดขายอยู่คนละคอลัมน์กับหัวเรื่อง สองฝั่งจึงหนักพอกันแทนที่จะกองอยู่ข้างเดียว */}
-            <div className="reveal lg:pt-2">
-              <ul className="space-y-7">
-                {studioPoints.map(({ icon: Icon, title, text }) => (
-                  <li key={title} className="flex gap-4">
-                    <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent-subtle text-accent">
-                      <Icon size={17} strokeWidth={1.75} aria-hidden />
-                    </span>
-                    <div>
-                      <p className="font-medium">{title}</p>
-                      <p className="mt-1 text-sm leading-relaxed text-muted-foreground text-pretty">
-                        {text}
-                      </p>
-                    </div>
+      {/* ───────────── งานดิจิทัล ───────────── */}
+      {digitalCase && shots.length > 0 && (
+        <section id="digital-work" aria-labelledby="case-title" className="home-block home-case">
+          <div className="container case-layout">
+            <div className="case-visual" data-enter>
+              <CaseStudyViewer
+                shots={shots}
+                host={liveHost}
+                listLabel={t('case.shots')}
+                unavailableLabel={unavailableLabel}
+              />
+            </div>
+            <div className="case-copy" data-enter style={{ '--entry-delay': '120ms' } as CSSProperties}>
+              <p className="section-eyebrow">{t('case.eyebrow')}</p>
+              <h2 id="case-title" className="home-h2 case-title font-display">
+                {isThai ? digitalCase.titleTh : digitalCase.titleEn}
+              </h2>
+              <p className="case-meta">
+                <span>{tCat(digitalCase.category)}</span>
+                {digitalCase.year && <span>{digitalCase.year}</span>}
+                {digitalCase.clientName && <span>{digitalCase.clientName}</span>}
+              </p>
+              <p className="home-lede case-summary">{isThai ? digitalCase.summaryTh : digitalCase.summaryEn}</p>
+              {digitalCase.techStack.length > 0 && (
+                <div className="case-tech">
+                  <p>{tWork('techStack')}</p>
+                  <ul>
+                    {digitalCase.techStack.slice(0, 8).map((tech, index) => (
+                      <li key={`${index}-${tech}`}>{tech}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="case-actions">
+                <Link href={`/work/${digitalCase.slug}`} className={buttonClasses('outline', 'lg')}>
+                  {t('case.details')}
+                  <ArrowUpRight size={18} aria-hidden />
+                </Link>
+                {liveUrl && (
+                  <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="text-link">
+                    {tWork('visitSite')}
+                    <ArrowUpRight size={17} aria-hidden />
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ───────────── งานถ่ายภาพ ───────────── */}
+      {photos.length >= 3 && (
+        <section id="photography" aria-labelledby="photos-title" className="home-block home-photos studio-panel">
+          <div className="container">
+            <div className="photos-head" data-enter>
+              <div>
+                <p className="section-eyebrow">{t('photos.eyebrow')}</p>
+                <h2 id="photos-title" className="home-h2 font-display">
+                  {t('photos.title')}
+                </h2>
+              </div>
+              <p className="home-lede">{t('photos.subtitle')}</p>
+            </div>
+            <PhotoMosaic photos={photos} unavailableLabel={unavailableLabel} />
+            <div className="photos-foot">
+              <p>
+                {t('photos.from')}
+                {photoSources.map(([href, title]) => (
+                  <Link key={href} href={href}>
+                    {title}
+                    <ArrowUpRight size={15} aria-hidden />
+                  </Link>
+                ))}
+              </p>
+              <Link href={{ pathname: '/work', query: { category: 'PHOTOGRAPHY' } }} className="text-link">
+                {t('photos.all')}
+                <ArrowUpRight size={17} aria-hidden />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ───────────── สตูดิโอและเช่าอุปกรณ์ ───────────── */}
+      <section id="rental" aria-labelledby="rental-title" className="home-block home-rental">
+        <div className="container">
+          <div className="rental-head" data-enter>
+            <div>
+              <p className="section-eyebrow">{t('rental.eyebrow')}</p>
+              <h2 id="rental-title" className="home-h2 font-display">
+                {t('studioHeading')}
+              </h2>
+            </div>
+            <div>
+              <p className="home-lede">{t('studioIntro')}</p>
+              <div className="rental-actions">
+                <Link href="/rental" className={buttonClasses('accent', 'lg')}>
+                  {t('studioCta')}
+                  <ArrowUpRight size={19} aria-hidden />
+                </Link>
+                <Link href="/rental/estimate" className={buttonClasses('outline', 'lg')}>
+                  {t('rental.estimate')}
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {gear.length > 0 && (
+            <div data-enter>
+              <GearRail
+                label={t('rental.label')}
+                countLabel={t('rental.count', { count: gear.length })}
+                previousLabel={t('rental.previous')}
+                nextLabel={t('rental.next')}
+              >
+                {gear.map((item) => {
+                  const rate = formatPrice(item.dailyRate, locale)
+                  return (
+                    <li key={item.id}>
+                      <Link href={`/rental/${item.slug}`} className="gear-card">
+                        <span className="gear-card-image">
+                          {item.image && !isPlaceholderImage(item.image) ? (
+                            <ContentImage
+                              src={item.image}
+                              alt=""
+                              unavailableLabel={unavailableLabel}
+                              fill
+                              sizes="(min-width: 1024px) 16rem, (min-width: 640px) 40vw, 72vw"
+                              className="object-contain"
+                            />
+                          ) : (
+                            <EquipmentIcon
+                              category={item.category}
+                              size={40}
+                              strokeWidth={1.2}
+                              aria-hidden
+                              className="gear-card-placeholder"
+                            />
+                          )}
+                        </span>
+                        <span className="gear-card-body">
+                          <span className="gear-card-category">{tEquip(item.category)}</span>
+                          <strong>{equipmentName(item.brand, item.model)}</strong>
+                          {rate && (
+                            <span className="gear-card-price">
+                              <b>{rate}</b> {tc('perDay')}
+                            </span>
+                          )}
+                        </span>
+                      </Link>
+                    </li>
+                  )
+                })}
+              </GearRail>
+            </div>
+          )}
+
+          {studioFacts.length > 0 && (
+            <div className="rental-studio" data-enter>
+              <div className="rental-studio-head">
+                <strong>{t('rental.facts')}</strong>
+                {studioPrice?.from && (
+                  <span>
+                    {studioPrice.from} <b>{studioPrice.amount}</b> {studioPrice.unit}
+                  </span>
+                )}
+              </div>
+              <ul className="rental-facts">
+                {studioFacts.map((fact, index) => (
+                  <li key={`${index}-${fact}`}>
+                    <Check size={16} aria-hidden />
+                    {fact}
                   </li>
                 ))}
               </ul>
-
-              <Link href="/rental" className={buttonClasses('accent', 'lg', 'mt-9')}>
-                {t('studioCta')}
-                <ArrowRight size={18} strokeWidth={1.75} aria-hidden />
-              </Link>
-            </div>
-          </div>
-
-          {/* หมวดอุปกรณ์พร้อมจำนวนและตัวอย่างรุ่น อ่านจากคลังจริง */}
-          {gearGroups.length > 0 && (
-            <ul
-              className={cn(
-                'reveal-stagger mt-16 grid gap-px overflow-hidden rounded-lg border border-border bg-border',
-                'sm:grid-cols-2 lg:grid-cols-4',
-                // จำนวนหมวดหารไม่ลงตัวได้ ช่องที่เหลือจะกลายเป็นบล็อกสีขอบทึบ ๆ
-                // ให้ใบสุดท้ายยืดกินช่องที่เหลือ กริดจึงเต็มเสมอไม่ว่าจะมีกี่หมวด
-                'sm:[&>li:last-child:nth-child(odd)]:col-span-2',
-                'lg:[&>li:last-child:nth-child(4n+1)]:col-span-4',
-                'lg:[&>li:last-child:nth-child(4n+2)]:col-span-3',
-                'lg:[&>li:last-child:nth-child(4n+3)]:col-span-2',
+              {studioService && (
+                <Link href={`/services/${studioService.slug}`} className="text-link">
+                  {t('studioSpaceAction')}
+                  <ArrowUpRight size={16} aria-hidden />
+                </Link>
               )}
-            >
-              {gearGroups.map(([category, group]) => (
-                <li key={category} className="bg-background p-6">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-accent-subtle text-accent">
-                    <EquipmentIcon
-                      category={category as Parameters<typeof EquipmentIcon>[0]['category']}
-                      size={19}
-                      strokeWidth={1.6}
-                      aria-hidden
-                    />
-                  </span>
-                  <p className="mt-4 font-medium">{tEquip(category)}</p>
-                  <p className="tabular mt-1 text-xs text-muted-foreground">
-                    {group.count} {t('studioItemsUnit')}
-                  </p>
-                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground text-pretty">
-                    {group.models.join(' · ')}
-                  </p>
-                </li>
-              ))}
-            </ul>
+            </div>
           )}
         </div>
-
-        {/* แถบชื่อรุ่นอุปกรณ์เลื่อนช้า ๆ ให้เห็นว่าคลังลึกแค่ไหนโดยไม่ต้องลิสต์ทั้งหมด */}
-        {gearNames.length > 0 && (
-          <div
-            aria-hidden
-            className="fade-edges-x relative overflow-hidden border-y border-border py-5"
-          >
-            <div className="marquee-track">
-              {[0, 1].map((copy) => (
-                <ul key={copy} className="flex shrink-0 items-center">
-                  {/* ชื่อรุ่นซ้ำกันได้ถ้ามีของรุ่นเดียวกันหลายตัว จึงใช้ลำดับเป็น key ไม่ใช่ชื่อ */}
-                  {gearNames.map((name, index) => (
-                    <li
-                      key={index}
-                      className="flex items-center gap-6 whitespace-nowrap px-6 font-mono text-xs uppercase tracking-[0.16em] text-muted-foreground"
-                    >
-                      {name}
-                      <span className="h-1 w-1 rounded-full bg-accent/60" />
-                    </li>
-                  ))}
-                </ul>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/*
-          ฉากสตูดิโออยู่ล่างสุดของแผง เส้นพื้นจึงเป็นขอบล่างของ section พอดี
-          ไม่ได้อยู่ในคอนเทนเนอร์ ไม่มีกรอบ ไม่มีพื้นหลังของตัวเอง
-          ข้อความและการ์ดด้านบนจึงอ่านเป็นของที่ตั้งอยู่ในห้องเดียวกับฉาก
-          ไม่ใช่ข้อความที่มีรูปแปะอยู่ข้าง ๆ แบบเดิม
-        */}
-        <StudioScene className="block h-[190px] w-full sm:h-[240px] lg:h-[300px]" />
       </section>
 
-      {/* ───────────── ผลงานเด่น ชิ้นแรกไปอยู่ใน hero แล้ว ที่นี่จึงเป็นชิ้นที่เหลือ ───────────── */}
-      {restFeatured.length > 0 && (
-        <Section
-          eyebrow={t('workEyebrow')}
-          title={t('workTitle')}
-          subtitle={t('workSubtitle')}
-          action={
-            <Link href="/work" className={buttonClasses('outline', 'md')}>
-              {t('workCta')}
-            </Link>
-          }
-        >
-          <div className="reveal-stagger grid gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-            {restFeatured.map((project) => (
-              <ProjectCard key={project.id} project={project} locale={locale} />
-            ))}
+      {/* ───────────── เริ่มงานกับเรา + คำถามที่พบบ่อย ───────────── */}
+      <section id="how-it-works" aria-labelledby="start-title" className="home-block home-start">
+        <div className="container">
+          <div className="start-head" data-enter>
+            <p className="section-eyebrow">{t('process.eyebrow')}</p>
+            <h2 id="start-title" className="home-h2 font-display">
+              {t('process.title')}
+            </h2>
+            <p className="home-lede">{t('process.description')}</p>
           </div>
-        </Section>
-      )}
+          <ol className="start-steps">
+            {steps.map(({ icon: Icon, title, text }, index) => (
+              <li
+                key={title}
+                className="start-step"
+                data-enter
+                style={{ '--entry-delay': `${index * 100}ms` } as CSSProperties}
+              >
+                <div className="start-step-top">
+                  <span className="start-step-number font-display" aria-hidden>
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <Icon size={20} strokeWidth={1.6} aria-hidden />
+                </div>
+                <h3>{title}</h3>
+                <p>{text}</p>
+              </li>
+            ))}
+          </ol>
+          <div className="start-faq" data-enter>
+            <div>
+              <p className="section-eyebrow">{t('faq.eyebrow')}</p>
+              <h3 className="start-faq-title font-display text-balance">{t('faq.title')}</h3>
+              <Link href="/contact" className="text-link">
+                {t('faq.action')}
+                <ArrowUpRight size={16} aria-hidden />
+              </Link>
+            </div>
+            <Faq items={faq} />
+          </div>
+        </div>
+      </section>
 
       {/* ───────────── เสียงจากลูกค้า ───────────── */}
       {reviews.length > 0 && (
         <Section
-          tone="subtle"
+          className="home-section"
           eyebrow={t('reviewsEyebrow')}
           title={t('reviewsTitle')}
           subtitle={t('reviewsSubtitle')}
           action={
-            <Link href="/reviews" className={buttonClasses('outline', 'md')}>
+            <Link href="/reviews" className="text-link">
               {t('reviewsCta')}
+              <ArrowUpRight size={17} aria-hidden />
             </Link>
           }
         >
-          <ul className="reveal-stagger grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {reviews.map((review) => (
-              <li key={review.id}>
+          <ul className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {reviews.map((review, index) => (
+              <li key={review.id} data-enter style={{ '--entry-delay': `${index * 90}ms` } as CSSProperties}>
                 <ReviewCard review={review} locale={locale} />
               </li>
             ))}
@@ -419,29 +492,27 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
         </Section>
       )}
 
-      {/* ───────────── CTA ───────────── */}
-      <section className="border-t border-border py-20 md:py-28">
+      {/* ───────────── ชวนคุย ───────────── */}
+      <section aria-labelledby="contact-title" className="home-contact">
         <div className="container">
-          <div className="mx-auto max-w-2xl text-center">
-            <Badge variant="accent" className="mb-6">
-              {t('ctaNote')}
-            </Badge>
-            <h2 className="font-display text-display-md text-balance">{t('ctaTitle')}</h2>
-            <p className="mt-4 text-lg leading-relaxed text-muted-foreground text-pretty">
-              {t('ctaSubtitle')}
-            </p>
-            <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
-              <Link href="/contact" className={buttonClasses('accent', 'lg')}>
+          <div className="contact-band" data-enter>
+            <div>
+              <p className="section-eyebrow">{t('ctaNote')}</p>
+              <h2 id="contact-title" className="font-display text-balance">
+                {t('ctaTitle')}
+              </h2>
+              <p>{t('ctaSubtitle')}</p>
+            </div>
+            <div className="contact-band-action">
+              <Link href="/contact" className={buttonClasses('primary', 'lg')}>
                 {tc('getQuote')}
-                <ArrowRight size={18} strokeWidth={1.75} />
+                <ArrowUpRight size={19} aria-hidden />
               </Link>
-              <Link href="/work" className={buttonClasses('outline', 'lg')}>
-                {tc('viewWork')}
-              </Link>
+              <small>{tContact('responseNote')}</small>
             </div>
           </div>
         </div>
       </section>
-    </>
+    </HomeMotion>
   )
 }

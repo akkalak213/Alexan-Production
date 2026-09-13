@@ -1,5 +1,5 @@
 import { ArrowUpRight } from 'lucide-react'
-import Image from 'next/image'
+import { ContentImage } from '@/components/ui/ContentImage'
 import { getTranslations } from 'next-intl/server'
 import type { ServiceCategory } from '@/generated/prisma/enums'
 import { Link } from '@/i18n/navigation'
@@ -25,30 +25,34 @@ type Props = {
   locale: Locale
   /** ใบใหญ่ใช้กับผลงานเด่นใบแรก ให้จังหวะสายตาไม่ราบเรียบ */
   featured?: boolean
+  /** A short, consistently sized preview for the homepage. */
+  compact?: boolean
   priority?: boolean
 }
 
-export async function ProjectCard({ project, locale, featured, priority }: Props) {
+export async function ProjectCard({ project, locale, featured, compact, priority }: Props) {
   const tCat = await getTranslations('serviceCategory')
+  const tc = await getTranslations('common')
   const isThai = locale === 'th'
 
   const title = isThai ? project.titleTh : project.titleEn
   const summary = isThai ? project.summaryTh : project.summaryEn
 
   return (
-    <article className={cn('group', featured && 'sm:col-span-2')}>
+    <article className={cn('group', compact && 'project-compact', featured && !compact && 'sm:col-span-2')}>
       <Link href={`/work/${project.slug}`} className="block">
         <div
           className={cn(
-            'relative overflow-hidden rounded-lg border border-border bg-subtle',
-            featured ? 'aspect-[16/9]' : 'aspect-[4/3]',
+            'project-image relative overflow-hidden rounded-lg border border-border bg-subtle',
+            featured || compact ? 'aspect-[16/9]' : 'aspect-[4/3]',
           )}
         >
           {/* ผลงานเก่าบางชิ้นอาจไม่มีรูปปก — next/image กับ src ว่างจะโยน error ทั้งหน้า */}
           {project.coverImage && (
-          <Image
+          <ContentImage
             src={project.coverImage}
             alt=""
+            unavailableLabel={tc('imageUnavailable')}
             fill
             priority={priority}
             sizes={featured ? '(min-width: 1024px) 66vw, 100vw' : '(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw'}

@@ -40,11 +40,11 @@ export function EquipmentCard({ item, isSelected, onToggle }: Props) {
   return (
     <article
       className={cn(
-        'group relative flex h-full flex-col overflow-hidden rounded-lg border bg-surface transition-colors',
+        'equipment-card group relative flex h-full flex-col overflow-hidden rounded-lg border bg-surface transition-colors',
         isSelected ? 'border-accent' : 'border-border hover:border-foreground/20',
       )}
     >
-      <div className="relative aspect-[4/3] bg-subtle">
+      <div className="relative aspect-[4/3] overflow-hidden bg-subtle">
         {item.image && (
           <Image
             src={item.image}

@@ -17,6 +17,7 @@ import { pageMetadata } from '@/lib/seo'
 import { getSiteSettings } from '@/lib/settings'
 import { organizationSchema, websiteSchema } from '@/lib/structured-data'
 import '../globals.css'
+import '../editorial.css'
 
 /**
  * ฟอนต์แยกตามภาษา ไม่ใช่ปล่อยให้ fallback หากลิฟเอง
@@ -171,7 +172,7 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning className={fontVariables}>
-      <body className="flex min-h-dvh flex-col">
+      <body className="public-site flex min-h-dvh flex-col">
         {/* แถบบอกความคืบหน้าการอ่าน ผูกกับ scroll timeline ของ CSS ไม่มี JavaScript */}
         <div aria-hidden className="scroll-progress no-print" />
 

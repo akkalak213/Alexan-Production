@@ -113,13 +113,14 @@ const FLASH = (() => {
 
 import { cn } from '@/lib/utils'
 
-export function StudioScene({ className }: { className?: string }) {
+/** label มาจากไฟล์แปล หน้าอังกฤษจึงไม่ได้คำอธิบายภาพเป็นภาษาไทย */
+export function StudioScene({ className, label }: { className?: string; label: string }) {
   return (
     <svg
       viewBox="0 0 1440 320"
       preserveAspectRatio="xMidYMax slice"
       role="img"
-      aria-label="ภาพจำลองสตูดิโอถ่ายภาพ ช่างภาพยืนกดชัตเตอร์ที่กล้องซึ่งติดแฟลชหัวกลม มีซอฟต์บ็อกซ์สองดวง ไฟบูมเหนือสินค้า แผ่นสะท้อนแสง และฉากหลังกระดาษโค้ง"
+      aria-label={label}
       className={cn('studio-scene', className)}
       fill="none"
     >

@@ -803,8 +803,10 @@
   .hero-stage > :nth-child(4) { animation-delay: 180ms; }
   .mobile-dialog::backdrop { background: hsl(var(--background) / .9); }
   .mobile-dialog[open] { animation: rise-in 160ms ease-out; }
-  /* Decorative loops are static; no pause control is needed. */
-  .studio-scene *, .marquee-track, .keylight { animation: none !important; }
+  /*
+   * ฉากสตูดิโอเคยถูกปิดแอนิเมชันทั้งหมดตรงนี้ เพื่อเลี่ยงการทำปุ่มหยุด ฉากจึงนิ่งสนิท
+   * ตอนนี้ StudioStage มีปุ่มหยุดและหยุดเองเมื่อพ้นจอ ดู editorial.css
+   */
 }
 @media (prefers-reduced-motion: reduce) {
   .hero-stage > *, .mobile-dialog[open] { animation: none !important; }

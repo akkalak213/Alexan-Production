@@ -451,3 +451,77 @@ export const getPackageForQuote = cache((id: string) =>
     null,
   ),
 )
+
+// ─────────────────────────── หน้าแรก ───────────────────────────
+
+/**
+ * บริการพร้อมจุดเด่นและแพ็กเกจที่ราคาเริ่มต้นต่ำสุดหนึ่งชุด
+ * หน้าแรกใช้ทำรายการราคาย่อ ส่วนจุดเด่นของบริการสตูดิโอใช้บอกว่าในสตูดิโอมีอะไร
+ */
+export const getHomeServices = cache(() =>
+  safe(
+    'home-services',
+    () =>
+      db.service.findMany({
+        where: { isActive: true },
+        orderBy: { order: 'asc' },
+        select: {
+          ...serviceCardSelect,
+          highlightsTh: true,
+          highlightsEn: true,
+          packages: {
+            where: { isActive: true },
+            orderBy: [{ priceFrom: { sort: 'asc', nulls: 'last' } }, { order: 'asc' }],
+            take: 1,
+            select: { priceFrom: true, priceUnit: true },
+          },
+        },
+      }),
+    [],
+  ),
+)
+
+/** งานดิจิทัลหนึ่งชิ้นพร้อมภาพหน้าจอ ผลงานเด่นมาก่อน */
+export const getHomeDigitalCase = cache(() =>
+  safe(
+    'home-digital-case',
+    () =>
+      db.project.findFirst({
+        where: { ...publicProjectWhere, category: { in: ['WEB', 'WEB_APP', 'MOBILE_APP'] } },
+        orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }, { order: 'asc' }],
+        select: {
+          ...projectCardSelect,
+          liveUrl: true,
+          techStack: true,
+          media: {
+            where: { type: 'IMAGE' },
+            orderBy: { order: 'asc' },
+            take: 6,
+            select: { id: true, url: true, altTh: true, altEn: true },
+          },
+        },
+      }),
+    null,
+  ),
+)
+
+/** งานภาพที่มีภาพให้วางโมเสกได้ ผลงานเด่นมาก่อน ดึงทั้งชุด (สูงสุด 40 ภาพ) เพื่อให้หน้าแรกหยิบกระจายได้ทั่วชุด */
+export const getHomePhotos = cache(() =>
+  safe(
+    'home-photos',
+    () =>
+      db.project.findMany({
+        where: { ...publicProjectWhere, category: { in: ['PHOTOGRAPHY', 'VIDEO'] } },
+        orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }, { order: 'asc' }],
+        take: 3,
+        select: {
+          slug: true,
+          titleTh: true,
+          titleEn: true,
+          coverImage: true,
+          media: { where: { type: 'IMAGE' }, orderBy: { order: 'asc' }, take: 40, select: { url: true } },
+        },
+      }),
+    [],
+  ),
+)

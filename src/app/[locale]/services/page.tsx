@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import type { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
@@ -6,7 +6,7 @@ import { localizedPath, type Locale } from '@/i18n/routing'
 import { pageMetadata } from '@/lib/seo'
 import { buttonClasses } from '@/components/ui/Button'
 import { Section } from '@/components/ui/Section'
-import { ServiceIcon } from '@/components/ui/ServiceIcon'
+import { ServiceCard } from '@/components/services/ServiceCard'
 import { getActiveServices } from '@/server/queries'
 import { JsonLd } from '@/components/JsonLd'
 import { breadcrumbSchema, collectionPageSchema } from '@/lib/structured-data'
@@ -80,37 +80,12 @@ export default async function ServicesPage({ params }: { params: Promise<{ local
             {tc('empty')}
           </p>
         ) : (
-          <ul className="grid gap-6 md:grid-cols-2">
-            {services.map((service) => (
-                <li key={service.id}>
-                  <Link
-                    href={`/services/${service.slug}`}
-                    className="group flex h-full flex-col rounded-lg border border-border bg-surface p-8 transition-colors hover:border-accent/40 md:p-10"
-                  >
-                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-accent-subtle text-accent">
-                      <ServiceIcon name={service.icon} size={22} strokeWidth={1.6} />
-                    </span>
-
-                    <h2 className="mt-5 font-display text-3xl text-balance">
-                      {isThai ? service.titleTh : service.titleEn}
-                    </h2>
-
-                    <p className="mt-3 flex-1 leading-relaxed text-muted-foreground text-pretty">
-                      {isThai ? service.taglineTh : service.taglineEn}
-                    </p>
-
-                    <span className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-accent">
-                      {tc('viewDetails')}
-                      <ArrowUpRight
-                        size={15}
-                        strokeWidth={2}
-                        aria-hidden
-                        className="transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-                      />
-                    </span>
-                  </Link>
-                </li>
-              ))}
+          <ul className="service-grid reveal-stagger">
+            {services.map((service, index) => (
+              <li key={service.id}>
+                <ServiceCard service={service} locale={locale} index={index} actionLabel={tc('viewDetails')} headingAs="h2" />
+              </li>
+            ))}
           </ul>
         )}
       </Section>

@@ -25,7 +25,7 @@ export function buttonClasses(
   className?: string,
 ) {
   return cn(
-    'inline-flex items-center justify-center rounded-md font-medium tracking-tight',
+    'ui-button inline-flex items-center justify-center rounded-md font-medium tracking-tight',
     'transition-[background-color,border-color,color,transform] duration-200 ease-out',
     'motion-safe:active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50',
     variant === 'link' ? 'h-auto px-0' : sizeClasses[size],

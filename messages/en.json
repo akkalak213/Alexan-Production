@@ -44,7 +44,8 @@
     "sending": "Sending",
     "skipToContent": "Skip to main content",
     "breadcrumb": "Breadcrumb",
-    "close": "Close"
+    "close": "Close",
+    "imageUnavailable": "Image currently unavailable"
   },
   "theme": {
     "label": "Theme",
@@ -77,40 +78,84 @@
     "ACCESSORY": "Accessories"
   },
   "home": {
+    "heroLocation": "Nakhon Si Thammarat",
     "metaTitle": "Alexan Production · Websites, photography, film, and gear rental",
     "metaDescription": "One team for websites, internal systems, mobile apps, product photography, and video. Studio and camera gear for rent. One conversation, start to finish.",
     "servicesEyebrow": "Our services",
-    "servicesTitle": "Six services, one team",
-    "servicesSubtitle": "Digital and visual work sit in the same team, so you are not coordinating several vendors to finish one piece of work.",
-    "workEyebrow": "Work",
-    "workTitle": "Work we have delivered",
-    "workSubtitle": "Filter to the kind of work you are interested in.",
+    "servicesTitle": "What would you like to create?",
+    "servicesSubtitle": "Choose exactly what you need, or bring your digital and visual work together with us.",
     "reviewsEyebrow": "Client feedback",
     "reviewsTitle": "What clients say about working with us",
-    "statsProjects": "Projects delivered",
-    "statsClients": "Clients who returned",
-    "statsYears": "Years doing this",
-    "statsRating": "Client rating",
     "ctaTitle": "Already have a project in mind?",
     "ctaSubtitle": "Tell us roughly what you need. It does not have to be fully worked out — we help shape it from the start.",
     "ctaNote": "First consultation is free",
-    "studioEyebrow": "Inside the studio",
-    "studioTitle": "A studio that is ready to shoot",
-    "studioSubtitle": "Continuous lights, studio strobes, cinema cameras, lenses, gimbals and audio kit. This is gear we use ourselves every day, so nothing has to be sourced elsewhere before your shoot date.",
-    "studioPointGearTitle": "Gear we actually work with",
-    "studioPointGearText": "Every item here goes out on real client jobs, not just on display.",
-    "studioPointLightTitle": "Full control of the light",
-    "studioPointLightText": "Shooting in a controlled room means the same result whether it is sunny or pouring outside.",
-    "studioPointRentTitle": "Rent it on its own",
-    "studioPointRentText": "Already have a crew? Take just the equipment and shoot it yourself.",
-    "studioStatGear": "Items in stock",
-    "studioStatCategories": "Categories",
-    "studioGearHeading": "What is available",
     "studioCta": "See all equipment",
-    "studioItemsUnit": "items",
-    "workCta": "See all work",
     "reviewsCta": "Read all reviews",
-    "reviewsSubtitle": "Every review comes from a real client. We do not filter out the ones that are less flattering."
+    "reviewsSubtitle": "Every review comes from a real client. We do not filter out the ones that are less flattering.",
+    "intro": "We build websites and apps, create photography and films, and offer studio space and equipment rental. Your digital products and visuals come together with one team.",
+    "introNote": "A rough idea is enough to start the conversation.",
+    "studioHeading": "Ready for your next shoot.",
+    "studioIntro": "Need a space to shoot, or the right gear for your crew? Explore our studio, cameras, lenses, lighting, and accessories, then ask us to check your dates.",
+    "studioSpaceAction": "Explore the studio",
+    "process": {
+      "eyebrow": "Working together",
+      "title": "Start with an idea.",
+      "description": "You don't need a perfect brief. We'll help turn your starting point into a clear plan.",
+      "step1": {
+        "title": "Tell us what you need",
+        "text": "Share your goal, audience, approximate budget, and the date you need the work."
+      },
+      "step2": {
+        "title": "Agree on the plan",
+        "text": "Discuss the approach, scope, price, and delivery plan together before the work begins."
+      },
+      "step3": {
+        "title": "Create, review, deliver",
+        "text": "Review progress together and receive the finished work with the details you need to use it."
+      }
+    },
+    "faq": {
+      "eyebrow": "Before your project",
+      "title": "A few useful answers.",
+      "q1": "Can I book just a website or a photo shoot?",
+      "a1": "Yes. Websites, apps, photography, video, studio space, and equipment rental are available individually. If you need several services, we can plan them together.",
+      "q2": "Do I need a detailed brief and budget first?",
+      "a2": "Not yet. Start with what you want to create, examples you like, and your approximate timeline. If you have a budget range, we'll use it to help shape a suitable scope.",
+      "q3": "Where can I see prices or request a quote?",
+      "a3": "Explore details and packages on each service page, or choose items from our rental equipment. For a custom project, contact us to discuss the scope and request a quote.",
+      "action": "Have another question? Let's talk"
+    },
+    "motionPause": "Pause animation",
+    "motionPlay": "Play animation",
+    "studioSceneLabel": "Illustrated photo studio: a photographer presses the shutter on a flash-mounted camera, lit by two softboxes, a boom light over the product, a reflector, and a curved backdrop.",
+    "groups": {
+      "digital": "Websites & apps",
+      "visual": "Photo & film"
+    },
+    "servicesAll": "Explore every service",
+    "servicesPriceNote": "Prices are package starting points. Your quote follows the scope of your project.",
+    "case": {
+      "eyebrow": "Latest digital project",
+      "details": "View the project",
+      "shot": "Screenshot {n} of {total}",
+      "shots": "Choose a screenshot"
+    },
+    "photos": {
+      "eyebrow": "Photography",
+      "title": "Real moments, from our own shoots",
+      "subtitle": "Every photo here comes from a real client shoot. Tap a photo to see the full set.",
+      "from": "Sets from",
+      "all": "See all photography"
+    },
+    "rental": {
+      "eyebrow": "Studio & gear rental",
+      "label": "Rental equipment",
+      "count": "{count} items ready to rent",
+      "previous": "Previous items",
+      "next": "Next items",
+      "estimate": "Estimate your rental",
+      "facts": "In our studio"
+    }
   },
   "services": {
     "metaTitle": "Services",

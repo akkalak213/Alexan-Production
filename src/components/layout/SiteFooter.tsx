@@ -69,7 +69,7 @@ export async function SiteFooter() {
     })
 
   return (
-    <footer className="border-t border-border bg-subtle no-print">
+    <footer className="site-footer border-t border-border bg-subtle no-print">
       {/*
         ฟุตเตอร์เคยสูง 1252px บนมือถือ ซึ่งเป็น 1.54 เท่าของความสูงจอ และกินพื้นที่ 24% ของทั้งหน้า
         ต้นเหตุคือทุกบล็อกวางซ้อนกันเป็นคอลัมน์เดียวและระยะห่างตั้งไว้เท่าหน้าเนื้อหา
@@ -188,7 +188,7 @@ export async function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-10 flex flex-col gap-3 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-8 flex flex-col gap-3 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>
             © {new Date().getFullYear()} {isThai ? company.nameTh : company.nameEn}. {t('rights')}
           </p>
