@@ -112,17 +112,24 @@ export default async function ProjectDetailPage({
   const isSoftwareWork =
     project.category === 'WEB' || project.category === 'WEB_APP' || project.category === 'MOBILE_APP'
 
+  /**
+   * ภาพที่ยังไม่ได้กรอกคำอธิบาย ใช้คำบรรยายภาพ ถ้าไม่มีอีกใช้ชื่องานกับลำดับภาพ
+   * alt ว่างทำให้โปรแกรมอ่านหน้าจอได้ยินแค่ "เปิดภาพ" ซ้ำทุกภาพ และค้นหาภาพของ Google ไม่มีข้อความให้จัดอันดับ
+   */
   const gallery: GalleryItem[] = project.media
     .filter((m) => m.type === 'IMAGE')
-    .map((m) => ({
-      id: m.id,
-      url: m.url,
-      width: m.width,
-      height: m.height,
-      blurData: m.blurData,
-      caption: isThai ? m.captionTh : m.captionEn,
-      alt: isThai ? m.altTh : m.altEn,
-    }))
+    .map((m, index, all) => {
+      const caption = isThai ? m.captionTh : m.captionEn
+      return {
+        id: m.id,
+        url: m.url,
+        width: m.width,
+        height: m.height,
+        blurData: m.blurData,
+        caption,
+        alt: (isThai ? m.altTh : m.altEn) || caption || `${title} (${index + 1}/${all.length})`,
+      }
+    })
 
   return (
     <>
