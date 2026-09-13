@@ -1,6 +1,7 @@
 import { cache } from 'react'
 import type { LeadStatus, ReviewStatus } from '@/generated/prisma/enums'
 import { startOfBangkokMonth } from '@/lib/bangkok-time'
+import { buildAdminTasks } from '@/lib/admin-tasks'
 import { db } from '@/lib/db'
 
 /**
@@ -22,6 +23,10 @@ export const getAdminCounts = cache(async () => {
 export const getDashboardData = cache(async () => {
   // ต้นเดือนตามเวลาไทย เซิร์ฟเวอร์ใช้ UTC ซึ่งช้ากว่าเจ็ดชั่วโมง
   const startOfMonth = startOfBangkokMonth()
+  const now = new Date()
+  const dayAgo = new Date(now.getTime() - 86_400_000)
+  const weekAgo = new Date(now.getTime() - 7 * 86_400_000)
+  const inThreeDays = new Date(now.getTime() + 3 * 86_400_000)
 
   const [
     leadsNew,
@@ -36,6 +41,17 @@ export const getDashboardData = cache(async () => {
     quotesSent,
     recentLeads,
     recentReviews,
+    staleLeadCount,
+    staleLeads,
+    unsentQuoteCount,
+    unsentQuotes,
+    expiringQuoteCount,
+    expiringQuotes,
+    followUpCount,
+    followUpLeads,
+    placeholderPosts,
+    incompleteEquipment,
+    mediaWithoutAlt,
   ] = await Promise.all([
     db.lead.count({ where: { status: 'NEW' } }),
     db.lead.count({ where: { createdAt: { gte: startOfMonth } } }),
@@ -74,6 +90,41 @@ export const getDashboardData = cache(async () => {
         createdAt: true,
       },
     }),
+    // คำขอใหม่ที่รอเกินหนึ่งวัน
+    db.lead.count({ where: { status: 'NEW', createdAt: { lt: dayAgo } } }),
+    db.lead.findMany({
+      where: { status: 'NEW', createdAt: { lt: dayAgo } },
+      orderBy: { createdAt: 'asc' },
+      take: 3,
+      select: { id: true, refCode: true, name: true, createdAt: true },
+    }),
+    // ใบเสนอราคาที่ยังไม่เคยส่งอีเมลถึงลูกค้า (รวมใบเก่าที่ถูกตั้งสถานะส่งแล้วด้วยมือ)
+    db.quote.count({ where: { sentAt: null, status: { in: ['DRAFT', 'SENT'] } } }),
+    db.quote.findMany({
+      where: { sentAt: null, status: { in: ['DRAFT', 'SENT'] } },
+      orderBy: { createdAt: 'asc' },
+      take: 3,
+      select: { id: true, quoteNumber: true, customerName: true, createdAt: true },
+    }),
+    // ส่งแล้ว ลูกค้ายังไม่ตอบ และจะหมดอายุภายในสามวันหรือหมดไปแล้ว
+    db.quote.count({ where: { status: 'SENT', sentAt: { not: null }, validUntil: { lt: inThreeDays } } }),
+    db.quote.findMany({
+      where: { status: 'SENT', sentAt: { not: null }, validUntil: { lt: inThreeDays } },
+      orderBy: { validUntil: 'asc' },
+      take: 3,
+      select: { id: true, quoteNumber: true, customerName: true, validUntil: true },
+    }),
+    // เสนอราคาไปแล้วเกินเจ็ดวันยังไม่มีผล
+    db.lead.count({ where: { status: 'QUOTED', updatedAt: { lt: weekAgo } } }),
+    db.lead.findMany({
+      where: { status: 'QUOTED', updatedAt: { lt: weekAgo } },
+      orderBy: { updatedAt: 'asc' },
+      take: 3,
+      select: { id: true, refCode: true, name: true, updatedAt: true },
+    }),
+    db.post.count({ where: { status: 'PUBLISHED', coverImage: { contains: 'picsum.photos' } } }),
+    db.equipment.count({ where: { isActive: true, OR: [{ image: null }, { image: '' }, { dailyRate: null }] } }),
+    db.projectMedia.count({ where: { altTh: null, altEn: null, project: { status: 'PUBLISHED' } } }),
   ])
 
   return {
@@ -87,6 +138,20 @@ export const getDashboardData = cache(async () => {
     quotes: { draft: quotesDraft, sent: quotesSent },
     recentLeads,
     recentReviews,
+    tasks: buildAdminTasks(
+      {
+        staleLeads: { count: staleLeadCount, rows: staleLeads },
+        freshLeadCount: Math.max(0, leadsNew - staleLeadCount),
+        unsentQuotes: { count: unsentQuoteCount, rows: unsentQuotes },
+        expiringQuotes: { count: expiringQuoteCount, rows: expiringQuotes },
+        followUpLeads: { count: followUpCount, rows: followUpLeads },
+        pendingReviews: reviewsPending,
+        placeholderPosts,
+        incompleteEquipment,
+        mediaWithoutAlt,
+      },
+      now,
+    ),
   }
 })
 

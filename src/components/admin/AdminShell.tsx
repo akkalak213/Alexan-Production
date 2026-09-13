@@ -23,6 +23,7 @@ import { ThemeToggle } from '@/components/layout/ThemeToggle'
 import { Wordmark } from '@/components/layout/Wordmark'
 import { logout } from '@/server/auth-actions'
 import { cn } from '@/lib/utils'
+import { LeaveGuard } from './LeaveGuard'
 
 type NavItem = { href: string; label: string; icon: LucideIcon; badge?: number }
 
@@ -61,7 +62,14 @@ type Props = {
 
 export function AdminShell({ children, user, counts }: Props) {
   const pathname = usePathname()
-  const [isOpen, setIsOpen] = useState(false)
+
+  /**
+   * จำว่าเมนูเปิดจากหน้าไหน เปลี่ยนหน้าแล้วเมนูปิดเอง
+   * เดิมปิดใน onClick ของลิงก์ ถ้าการเปลี่ยนหน้าถูกเริ่มจากที่อื่น (เช่นยืนยันออกในกล่องเตือน) เมนูจะค้างทับหน้าใหม่
+   */
+  const [menuPath, setMenuPath] = useState<string | null>(null)
+  const isOpen = menuPath === pathname
+  const setIsOpen = (open: boolean) => setMenuPath(open ? pathname : null)
 
   // ล็อกการเลื่อนพื้นหลังตอนเมนูเปิด และคืนค่าเดิมกลับไป ไม่ใช่ล้างทิ้งเป็นค่าว่าง
   useEffect(() => {
@@ -78,7 +86,7 @@ export function AdminShell({ children, user, counts }: Props) {
   useEffect(() => {
     const desktop = window.matchMedia('(min-width: 1024px)')
     const closeOnDesktop = () => {
-      if (desktop.matches) setIsOpen(false)
+      if (desktop.matches) setMenuPath(null)
     }
 
     desktop.addEventListener('change', closeOnDesktop)
@@ -86,7 +94,7 @@ export function AdminShell({ children, user, counts }: Props) {
   }, [])
 
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => event.key === 'Escape' && setIsOpen(false)
+    const onKeyDown = (event: KeyboardEvent) => event.key === 'Escape' && setMenuPath(null)
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
@@ -156,7 +164,8 @@ export function AdminShell({ children, user, counts }: Props) {
           <p className="truncate text-sm font-medium">{user.name}</p>
           <p className="truncate text-xs text-muted-foreground">{user.email}</p>
         </div>
-        <form action={logout}>
+        {/* data-leave-guard: มีงานแก้ค้างอยู่ LeaveGuard จะถามก่อนออกจากระบบ */}
+        <form action={logout} data-leave-guard>
           <button
             type="submit"
             className="flex min-h-[40px] w-full items-center gap-3 rounded-md px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
@@ -214,6 +223,8 @@ export function AdminShell({ children, user, counts }: Props) {
 
         <main className="flex-1 px-5 py-8 md:px-8">{children}</main>
       </div>
+
+      <LeaveGuard />
     </div>
   )
 }

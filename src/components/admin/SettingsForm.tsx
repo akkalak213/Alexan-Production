@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react'
 import { AdminCard } from '@/components/admin/AdminPage'
+import { AdminForm } from '@/components/admin/AdminForm'
 import { useActionToast } from '@/components/ui/Toast'
 import { SubmitButton } from '@/components/admin/AdminUI'
 import { Field, FormMessage, Input, Textarea } from '@/components/ui/Form'
@@ -21,13 +22,20 @@ export function SettingsForm({
   hero: Group
   quote: Group
 }) {
-  const [state, formAction] = useActionState(saveSettings, initialAdminState)
+  const [state, formAction, isPending] = useActionState(saveSettings, initialAdminState)
 
   useActionToast(state)
   const value = (group: Group, key: string) => String(group?.[key] ?? '')
 
   return (
-    <form action={formAction} className="space-y-6">
+    <AdminForm
+      action={formAction}
+      state={state}
+      isPending={isPending}
+      guardLabel="ข้อมูลบริษัท"
+      saveLabel="บันทึกทั้งหมด"
+      className="space-y-6"
+    >
       <AdminCard
         title="ข้อมูลบริษัท"
         description="ใช้ทั้งใน footer หน้าติดต่อ และหัวใบเสนอราคา"
@@ -229,6 +237,6 @@ export function SettingsForm({
       )}
 
       <SubmitButton size="lg">บันทึกทั้งหมด</SubmitButton>
-    </form>
+    </AdminForm>
   )
 }

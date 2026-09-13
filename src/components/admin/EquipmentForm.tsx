@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useActionState } from 'react'
 import { EquipmentCategory, EquipmentStatus } from '@/generated/prisma/enums'
 import { AdminCard } from '@/components/admin/AdminPage'
+import { AdminForm } from '@/components/admin/AdminForm'
 import { useActionToast } from '@/components/ui/Toast'
 import {
   BilingualTabs,
@@ -13,6 +14,7 @@ import {
   VersionField,
 } from '@/components/admin/AdminUI'
 import { ImageField, ImageListField } from '@/components/admin/ImageField'
+import { RateHint } from '@/components/admin/RateHint'
 import { buttonClasses } from '@/components/ui/Button'
 import { Field, FormMessage, Input, Select, Textarea } from '@/components/ui/Form'
 import { equipmentCategoryLabels, equipmentStatusLabels } from '@/lib/admin-labels'
@@ -69,14 +71,21 @@ export const emptyEquipment: EquipmentFormData = {
 }
 
 export function EquipmentForm({ item }: { item: EquipmentFormData }) {
-  const [state, formAction] = useActionState(saveEquipment, initialAdminState)
+  const [state, formAction, isPending] = useActionState(saveEquipment, initialAdminState)
 
   useActionToast(state)
   const isEditing = Boolean(item.id)
 
   return (
     <div className="space-y-6">
-      <form action={formAction} className="space-y-6">
+      <AdminForm
+        action={formAction}
+        state={state}
+        isPending={isPending}
+        guardLabel="อุปกรณ์"
+        saveLabel={isEditing ? 'บันทึกการแก้ไข' : 'เพิ่มอุปกรณ์'}
+        className="space-y-6"
+      >
         {isEditing && (
           <>
             <input type="hidden" name="id" value={item.id} />
@@ -136,9 +145,7 @@ export function EquipmentForm({ item }: { item: EquipmentFormData }) {
               />
             </Field>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            เว้นว่างไว้ = ไม่แสดงราคาบนหน้าเว็บ ลูกค้าต้องสอบถาม
-          </p>
+          <RateHint />
         </AdminCard>
 
         <BilingualTabs
@@ -240,7 +247,7 @@ export function EquipmentForm({ item }: { item: EquipmentFormData }) {
             ยกเลิก
           </Link>
         </div>
-      </form>
+      </AdminForm>
 
       {isEditing && (
         <form

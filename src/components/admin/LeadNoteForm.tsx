@@ -1,6 +1,7 @@
 'use client'
 
-import { useActionState, useEffect, useRef } from 'react'
+import { useActionState } from 'react'
+import { AdminForm } from '@/components/admin/AdminForm'
 import { Button } from '@/components/ui/Button'
 import { useActionToast } from '@/components/ui/Toast'
 import { Textarea } from '@/components/ui/Form'
@@ -8,18 +9,20 @@ import { initialAdminState } from '@/server/admin-state'
 import { addLeadNote } from '@/server/admin-actions'
 
 export function LeadNoteForm({ leadId }: { leadId: string }) {
-  const formRef = useRef<HTMLFormElement>(null)
   const [state, formAction, isPending] = useActionState(addLeadNote, initialAdminState)
 
   useActionToast(state)
 
-  // ล้างช่องหลังบันทึกสำเร็จ เพื่อให้พิมพ์โน้ตถัดไปได้เลย
-  useEffect(() => {
-    if (state.status === 'success') formRef.current?.reset()
-  }, [state])
-
   return (
-    <form ref={formRef} action={formAction} className="space-y-3">
+    // ล้างช่องหลังบันทึกสำเร็จ พิมพ์โน้ตถัดไปได้เลย ส่วนบันทึกไม่ผ่านข้อความยังอยู่ครบ
+    <AdminForm
+      action={formAction}
+      state={state}
+      isPending={isPending}
+      guardLabel="บันทึกภายใน"
+      resetOnSuccess
+      className="space-y-3"
+    >
       <input type="hidden" name="leadId" value={leadId} />
       <label htmlFor="note-body" className="sr-only">
         บันทึกภายใน
@@ -45,6 +48,6 @@ export function LeadNoteForm({ leadId }: { leadId: string }) {
           </p>
         )}
       </div>
-    </form>
+    </AdminForm>
   )
 }

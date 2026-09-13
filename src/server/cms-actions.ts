@@ -80,6 +80,7 @@ function failure(error: unknown, label: string): AdminActionState {
   return {
     status: 'error',
     message: isDuplicate ? 'มีรายการที่ใช้ slug นี้อยู่แล้ว กรุณาเปลี่ยน slug' : 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง',
+    ...(isDuplicate ? { field: 'slug' } : {}),
   }
 }
 
@@ -106,7 +107,7 @@ export async function saveProject(
 
   const id = optionalText(formData, 'id')
   const titleTh = text(formData, 'titleTh')
-  if (!titleTh) return { status: 'error', message: 'ต้องกรอกชื่อผลงานภาษาไทย' }
+  if (!titleTh) return { status: 'error', message: 'ต้องกรอกชื่อผลงานภาษาไทย', field: 'titleTh' }
 
   /**
    * รูปปกเป็นคอลัมน์ที่ห้ามว่างในฐานข้อมูล และหน้าเว็บเอาไปใส่ next/image ตรง ๆ
@@ -114,7 +115,7 @@ export async function saveProject(
    * ถ้าปล่อยผ่าน จะได้ผลงานที่ src เป็นข้อความว่าง แล้วหน้ารวมผลงานพังทั้งหน้า
    */
   const coverImage = text(formData, 'coverImage')
-  if (!coverImage) return { status: 'error', message: 'ต้องใส่รูปปกก่อนบันทึก' }
+  if (!coverImage) return { status: 'error', message: 'ต้องใส่รูปปกก่อนบันทึก', field: 'coverImage' }
 
   // สามช่องนี้ไปจบที่ href และ iframe บนหน้าผลงาน — กันค่าที่กดแล้วรันสคริปต์ตั้งแต่ตอนบันทึก
   const badUrls = invalidUrlFields(formData, {
@@ -251,13 +252,16 @@ export async function saveEquipment(
   const id = optionalText(formData, 'id')
   const brand = text(formData, 'brand')
   const model = text(formData, 'model')
-  if (!brand || !model) return { status: 'error', message: 'ต้องกรอกยี่ห้อและรุ่น' }
+  if (!brand || !model) return { status: 'error', message: 'ต้องกรอกยี่ห้อและรุ่น', field: brand ? 'model' : 'brand' }
 
   const dailyRate = number(formData, 'dailyRate')
   const weeklyRate = number(formData, 'weeklyRate')
   const depositAmount = number(formData, 'depositAmount')
-  if ([dailyRate, weeklyRate, depositAmount].some((value) => value !== null && value < 0)) {
-    return { status: 'error', message: 'ค่าเช่าและเงินมัดจำต้องไม่ติดลบ' }
+  const negativeField = Object.entries({ dailyRate, weeklyRate, depositAmount }).find(
+    ([, value]) => value !== null && value < 0,
+  )?.[0]
+  if (negativeField) {
+    return { status: 'error', message: 'ค่าเช่าและเงินมัดจำต้องไม่ติดลบ', field: negativeField }
   }
 
   const nameTh = text(formData, 'nameTh') || `${brand} ${model}`
@@ -480,7 +484,7 @@ export async function savePost(
 
   const id = optionalText(formData, 'id')
   const titleTh = text(formData, 'titleTh')
-  if (!titleTh) return { status: 'error', message: 'ต้องกรอกชื่อบทความภาษาไทย' }
+  if (!titleTh) return { status: 'error', message: 'ต้องกรอกชื่อบทความภาษาไทย', field: 'titleTh' }
 
   const slug = slugify(text(formData, 'slug') || text(formData, 'titleEn') || titleTh)
   const status = text(formData, 'status') as ContentStatus
@@ -575,7 +579,7 @@ export async function saveTeamMember(
 
   const id = optionalText(formData, 'id')
   const name = text(formData, 'name')
-  if (!name) return { status: 'error', message: 'ต้องกรอกชื่อ' }
+  if (!name) return { status: 'error', message: 'ต้องกรอกชื่อ', field: 'name' }
 
   const data = {
     name,
@@ -667,7 +671,11 @@ export async function saveSettings(
   const defaultVatRate = number(formData, 'quote_defaultVatRate') ?? 7
   const defaultWithholdingRate = number(formData, 'quote_defaultWithholdingRate') ?? 3
   if ([defaultVatRate, defaultWithholdingRate].some((rate) => rate < 0 || rate > 100)) {
-    return { status: 'error', message: 'อัตรา VAT และภาษีหัก ณ ที่จ่าย ต้องอยู่ระหว่าง 0 ถึง 100%' }
+    return {
+      status: 'error',
+      message: 'อัตรา VAT และภาษีหัก ณ ที่จ่าย ต้องอยู่ระหว่าง 0 ถึง 100%',
+      field: defaultVatRate < 0 || defaultVatRate > 100 ? 'quote_defaultVatRate' : 'quote_defaultWithholdingRate',
+    }
   }
 
   const company = {

@@ -1,7 +1,8 @@
 'use client'
 
-import { useActionState, useRef } from 'react'
+import { useActionState } from 'react'
 import { LeadStatus } from '@/generated/prisma/enums'
+import { AdminForm } from '@/components/admin/AdminForm'
 import { Select } from '@/components/ui/Form'
 import { useActionToast } from '@/components/ui/Toast'
 import { leadStatusLabels } from '@/lib/admin-labels'
@@ -17,13 +18,17 @@ export function LeadStatusForm({
   leadId: string
   current: LeadStatus
 }) {
-  const formRef = useRef<HTMLFormElement>(null)
   const [state, formAction, isPending] = useActionState(updateLeadStatus, initialAdminState)
 
   useActionToast(state)
 
+  /**
+   * ใช้ AdminForm ด้วยแม้จะเป็นช่องเดียว
+   * <form action> ของเดิมถูก React ล้างกลับเป็นค่าตั้งต้นหลังบันทึก ตัวเลือกจึงเด้งกลับไปเป็นสถานะเก่า
+   * ทั้งที่ในฐานข้อมูลเปลี่ยนไปแล้ว
+   */
   return (
-    <form ref={formRef} action={formAction} className="flex flex-col gap-1.5">
+    <AdminForm action={formAction} state={state} isPending={isPending} className="flex flex-col gap-1.5">
       <input type="hidden" name="leadId" value={leadId} />
       <label htmlFor="lead-status" className="text-xs font-medium text-muted-foreground">
         สถานะ
@@ -34,7 +39,7 @@ export function LeadStatusForm({
         defaultValue={current}
         disabled={isPending}
         // เปลี่ยนแล้วบันทึกทันที ไม่ต้องกดปุ่มเพิ่ม — เป็นงานที่ทำบ่อยมาก
-        onChange={() => formRef.current?.requestSubmit()}
+        onChange={(event) => event.currentTarget.form?.requestSubmit()}
       >
         {statuses.map((status) => (
           <option key={status} value={status}>
@@ -50,6 +55,6 @@ export function LeadStatusForm({
           {state.message}
         </p>
       )}
-    </form>
+    </AdminForm>
   )
 }

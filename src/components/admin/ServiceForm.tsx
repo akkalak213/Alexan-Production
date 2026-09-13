@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react'
 import { AdminCard } from '@/components/admin/AdminPage'
+import { AdminForm } from '@/components/admin/AdminForm'
 import { useActionToast } from '@/components/ui/Toast'
 import {
   BilingualTabs,
@@ -40,12 +41,19 @@ export type ServiceFormData = {
 }
 
 export function ServiceForm({ service }: { service: ServiceFormData }) {
-  const [state, formAction] = useActionState(saveService, initialAdminState)
+  const [state, formAction, isPending] = useActionState(saveService, initialAdminState)
 
   useActionToast(state)
 
   return (
-    <form action={formAction} className="space-y-6">
+    <AdminForm
+      action={formAction}
+      state={state}
+      isPending={isPending}
+      guardLabel="เนื้อหาบริการ"
+      saveLabel="บันทึกเนื้อหาบริการ"
+      className="space-y-6"
+    >
       <input type="hidden" name="id" value={service.id} />
       <VersionField initial={service.version} state={state} />
 
@@ -177,6 +185,6 @@ export function ServiceForm({ service }: { service: ServiceFormData }) {
       )}
 
       <SubmitButton size="lg">บันทึกเนื้อหาบริการ</SubmitButton>
-    </form>
+    </AdminForm>
   )
 }

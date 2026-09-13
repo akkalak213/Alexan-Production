@@ -2,6 +2,7 @@
 
 import { after } from 'next/server'
 import type { ServiceCategory } from '@/generated/prisma/enums'
+import { serviceCategoryLabels } from '@/lib/admin-labels'
 import { bangkokMidnight } from '@/lib/bangkok-time'
 import { db } from '@/lib/db'
 import { clientEnv, isMailConfigured } from '@/lib/env'
@@ -75,7 +76,7 @@ export async function submitReview(
         submitterEmail: submitterEmail || null,
         content,
         rating,
-        serviceCategory: (serviceCategory || null) as ServiceCategory | null,
+        serviceCategory: serviceCategory as ServiceCategory,
         locale,
         ipHash,
         userAgent: await getUserAgent(),
@@ -99,7 +100,7 @@ export async function submitReview(
           ['ตำแหน่ง/บริษัท', authorRole],
           ['อีเมล', submitterEmail],
           ['คะแนน', `${rating} / 5`],
-          ['บริการ', serviceCategory],
+          ['บริการ', serviceCategoryLabels[serviceCategory as ServiceCategory] ?? serviceCategory],
           ['เนื้อหา', content],
         ]),
       ),

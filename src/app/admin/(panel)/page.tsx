@@ -3,8 +3,16 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/Badge'
 import { RatingStars } from '@/components/ui/RatingStars'
+import type { TaskTone } from '@/lib/admin-tasks'
 import { formatDate } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { getDashboardData } from '@/server/admin-queries'
+
+const taskTone: Record<TaskTone, string> = {
+  urgent: 'bg-destructive',
+  warning: 'bg-warning',
+  info: 'bg-muted-foreground/40',
+}
 
 export const metadata: Metadata = { title: 'แดชบอร์ด' }
 
@@ -69,6 +77,48 @@ export default async function AdminDashboardPage() {
           ภาพรวมงานที่ต้องจัดการวันนี้
         </p>
       </header>
+
+      {/* เรียงตามความเร่ง ไม่ใช่ตามประเภท — สิ่งแรกที่เห็นคือสิ่งที่ควรทำก่อน */}
+      <section aria-labelledby="tasks-title" className="mb-8 rounded-lg border border-border bg-surface">
+        <header className="flex items-center justify-between border-b border-border px-5 py-4">
+          <h2 id="tasks-title" className="font-medium">
+            สิ่งที่ควรทำตอนนี้
+          </h2>
+          {data.tasks.length > 0 && (
+            <span className="text-xs text-muted-foreground">{data.tasks.length} เรื่อง</span>
+          )}
+        </header>
+
+        {data.tasks.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm text-muted-foreground">ไม่มีงานค้าง ทุกอย่างเรียบร้อย</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {data.tasks.map((task) => (
+              <li key={task.id}>
+                <Link
+                  href={task.href}
+                  className="group flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-muted/50"
+                >
+                  <span aria-hidden className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', taskTone[task.tone])} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium">{task.title}</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground text-pretty">{task.detail}</span>
+                  </span>
+                  <span className="tabular shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+                    {task.count}
+                  </span>
+                  <ArrowUpRight
+                    size={15}
+                    strokeWidth={2}
+                    aria-hidden
+                    className="mt-0.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <ul className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (

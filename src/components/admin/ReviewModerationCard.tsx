@@ -1,8 +1,10 @@
 'use client'
 
-import { Check, MessageSquareReply, Pin, X } from 'lucide-react'
+import { Check, MessageSquareReply, Pin, Trash2, X } from 'lucide-react'
 import { useActionState, useState } from 'react'
 import type { ReviewStatus, ServiceCategory } from '@/generated/prisma/enums'
+import { AdminForm } from '@/components/admin/AdminForm'
+import { ConfirmSubmitButton } from '@/components/admin/AdminUI'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Form'
@@ -10,7 +12,7 @@ import { RatingStars } from '@/components/ui/RatingStars'
 import { useActionToast } from '@/components/ui/Toast'
 import { serviceCategoryLabels } from '@/lib/admin-labels'
 import { initialAdminState } from '@/server/admin-state'
-import { moderateReview, replyToReview } from '@/server/admin-actions'
+import { deleteReview, moderateReview, replyToReview } from '@/server/admin-actions'
 
 export type ModerationReview = {
   id: string
@@ -129,10 +131,25 @@ export function ReviewModerationCard({ review }: { review: ModerationReview }) {
             {moderationState.message}
           </p>
         )}
+
+        {/* ลบถาวร ต่างจากปฏิเสธ — ต้องกดยืนยันอีกครั้งถึงจะลบจริง */}
+        <form action={deleteReview} className="ml-auto">
+          <input type="hidden" name="reviewId" value={review.id} />
+          <ConfirmSubmitButton variant="ghost" size="sm" question="ลบรีวิวนี้ถาวร กู้คืนไม่ได้" pendingLabel="กำลังลบ">
+            <Trash2 size={15} strokeWidth={1.75} aria-hidden />
+            ลบ
+          </ConfirmSubmitButton>
+        </form>
       </div>
 
       {showReply && (
-        <form action={replyAction} className="mt-4 space-y-3 border-t border-border pt-4">
+        <AdminForm
+          action={replyAction}
+          state={replyState}
+          isPending={isReplying}
+          guardLabel="คำตอบกลับรีวิว"
+          className="mt-4 space-y-3 border-t border-border pt-4"
+        >
           <input type="hidden" name="reviewId" value={review.id} />
           <p className="text-xs text-muted-foreground">
             คำตอบกลับจะแสดงใต้รีวิวบนหน้าเว็บ กรอกภาษาไหนก็ได้ ภาษาที่เว้นว่างจะไม่แสดงในหน้านั้น
@@ -178,7 +195,7 @@ export function ReviewModerationCard({ review }: { review: ModerationReview }) {
               </p>
             )}
           </div>
-        </form>
+        </AdminForm>
       )}
     </article>
   )

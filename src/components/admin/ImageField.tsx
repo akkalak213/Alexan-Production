@@ -2,10 +2,11 @@
 
 import { ArrowLeft, ArrowRight, ImagePlus, Loader2, Trash2, Upload } from 'lucide-react'
 import Image from 'next/image'
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Input } from '@/components/ui/Form'
 import { uploadImage } from '@/lib/upload-client'
 import { cn } from '@/lib/utils'
+import { INVALID_EVENT } from './admin-form-context'
 
 /**
  * ช่องรูปที่อัปโหลดขึ้น R2 ได้จริง
@@ -54,12 +55,31 @@ export function ImageField({
   hint?: string
 }) {
   const id = useId()
-  const [url, setUrl] = useState(initial)
+  const [url, setUrlState] = useState(initial)
+  const [missing, setMissing] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const valueRef = useRef<HTMLInputElement>(null)
   const { isUploading, error, upload } = useUploader(folder)
 
+  const setUrl = (next: string) => {
+    setUrlState(next)
+    if (next) setMissing(null)
+  }
+
+  // AdminForm แจ้งมาเมื่อกดบันทึกโดยยังไม่ได้ใส่รูปที่จำเป็น — ขึ้นข้อความตรงช่องนี้ ไม่ใช่ท้ายฟอร์ม
+  useEffect(() => {
+    const field = valueRef.current
+    if (!field) return
+
+    const onInvalid = (event: Event) =>
+      setMissing((event as CustomEvent<string | undefined>).detail ?? `ต้องใส่${label}ก่อนบันทึก`)
+
+    field.addEventListener(INVALID_EVENT, onInvalid)
+    return () => field.removeEventListener(INVALID_EVENT, onInvalid)
+  }, [label])
+
   return (
-    <fieldset>
+    <fieldset data-field={name}>
       <legend className="mb-2 text-sm font-medium">
         {label}
         {required && (
@@ -69,10 +89,15 @@ export function ImageField({
         )}
       </legend>
 
-      <input type="hidden" name={name} value={url} required={required} />
+      <input ref={valueRef} type="hidden" name={name} value={url} required={required} data-label={label} />
 
       <div className="flex flex-wrap items-start gap-4">
-        <div className="relative h-24 w-32 shrink-0 overflow-hidden rounded-md border border-border bg-subtle">
+        <div
+          className={cn(
+            'relative h-24 w-32 shrink-0 overflow-hidden rounded-md border bg-subtle',
+            missing ? 'border-destructive' : 'border-border',
+          )}
+        >
           {url ? (
             <Image src={url} alt="" fill sizes="128px" className="object-cover" unoptimized />
           ) : (
@@ -130,8 +155,10 @@ export function ImageField({
             className="text-xs"
           />
 
-          {error ? (
-            <p className="text-xs text-destructive">{error}</p>
+          {error || missing ? (
+            <p role="alert" className="text-xs text-destructive">
+              {error ?? missing}
+            </p>
           ) : (
             hint && <p className="text-xs text-muted-foreground">{hint}</p>
           )}

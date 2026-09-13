@@ -175,3 +175,25 @@ export async function replyToReview(
 
   return { status: 'success', message: hasReply ? 'บันทึกคำตอบกลับแล้ว' : 'ลบคำตอบกลับแล้ว' }
 }
+
+/**
+ * ลบรีวิวถาวร แยกจากการปฏิเสธ
+ * รีวิวทดสอบหรือสแปมไม่ควรค้างอยู่ในแท็บ "ปฏิเสธแล้ว" ตลอดไป
+ */
+export async function deleteReview(formData: FormData) {
+  await requireEditor()
+
+  const reviewId = String(formData.get('reviewId') ?? '')
+  if (!reviewId) return
+
+  try {
+    // deleteMany ไม่โยน error ถ้ามีคนลบไปก่อนแล้ว — ผลลัพธ์ที่ต้องการคือรีวิวนี้ไม่อยู่แล้วเหมือนกัน
+    await db.review.deleteMany({ where: { id: reviewId } })
+  } catch (error) {
+    console.error('[admin:deleteReview]', error)
+  }
+
+  revalidatePath('/admin/reviews')
+  revalidatePath('/admin')
+  revalidatePublicReviews()
+}

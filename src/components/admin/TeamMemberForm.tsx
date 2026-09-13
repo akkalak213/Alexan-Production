@@ -8,6 +8,7 @@ import {
 } from '@/components/admin/AdminUI'
 import { useActionToast } from '@/components/ui/Toast'
 import { ImageField } from '@/components/admin/ImageField'
+import { AdminForm } from '@/components/admin/AdminForm'
 import { Field, FormMessage, Input, Textarea } from '@/components/ui/Form'
 import { initialAdminState } from '@/server/admin-state'
 import { deleteTeamMember, saveTeamMember } from '@/server/cms-actions'
@@ -46,14 +47,20 @@ export const emptyTeamMember: TeamMemberFormData = {
 const socialFields = ['instagram', 'facebook', 'linkedin', 'github', 'website'] as const
 
 export function TeamMemberForm({ member }: { member: TeamMemberFormData }) {
-  const [state, formAction] = useActionState(saveTeamMember, initialAdminState)
+  const [state, formAction, isPending] = useActionState(saveTeamMember, initialAdminState)
 
   useActionToast(state)
   const isEditing = Boolean(member.id)
 
   return (
     <div className="rounded-lg border border-border bg-surface p-5">
-      <form action={formAction} className="space-y-5">
+      <AdminForm
+        action={formAction}
+        state={state}
+        isPending={isPending}
+        guardLabel={isEditing ? `ข้อมูลของ${member.name}` : 'สมาชิกใหม่'}
+        className="space-y-5"
+      >
         {isEditing && (
           <>
             <input type="hidden" name="id" value={member.id} />
@@ -139,7 +146,7 @@ export function TeamMemberForm({ member }: { member: TeamMemberFormData }) {
         )}
 
         <SubmitButton size="sm">{isEditing ? 'บันทึก' : 'เพิ่มสมาชิก'}</SubmitButton>
-      </form>
+      </AdminForm>
 
       {isEditing && (
         <form action={deleteTeamMember} className="mt-4 border-t border-border pt-4">

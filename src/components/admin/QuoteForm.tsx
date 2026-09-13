@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useActionState, useMemo, useState } from 'react'
 import { AdminCard } from '@/components/admin/AdminPage'
+import { AdminForm } from '@/components/admin/AdminForm'
 import { useActionToast } from '@/components/ui/Toast'
 import {
   ConfirmSubmitButton,
@@ -52,7 +53,7 @@ const blankLine: QuoteLineRow = { description: '', quantity: '1', unit: 'งา�
 const money = new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export function QuoteForm({ quote }: { quote: QuoteFormData }) {
-  const [state, formAction] = useActionState(saveQuote, initialAdminState)
+  const [state, formAction, isPending] = useActionState(saveQuote, initialAdminState)
 
   useActionToast(state)
   const [lines, setLines] = useState<QuoteLineRow[]>(quote.items.length ? quote.items : [blankLine])
@@ -79,7 +80,14 @@ export function QuoteForm({ quote }: { quote: QuoteFormData }) {
 
   return (
     <div className="space-y-6">
-      <form action={formAction} className="space-y-6">
+      <AdminForm
+        action={formAction}
+        state={state}
+        isPending={isPending}
+        guardLabel="ใบเสนอราคา"
+        saveLabel={isEditing ? 'บันทึกการแก้ไข' : 'สร้างใบเสนอราคา'}
+        className="space-y-6"
+      >
         {isEditing && <input type="hidden" name="id" value={quote.id} />}
         {isEditing && <VersionField initial={quote.version} state={state} />}
         {quote.leadId && <input type="hidden" name="leadId" value={quote.leadId} />}
@@ -306,7 +314,7 @@ export function QuoteForm({ quote }: { quote: QuoteFormData }) {
             ยกเลิก
           </Link>
         </div>
-      </form>
+      </AdminForm>
 
       {isEditing && (
         <form
@@ -316,7 +324,9 @@ export function QuoteForm({ quote }: { quote: QuoteFormData }) {
           <input type="hidden" name="id" value={quote.id} />
           <div>
             <p className="text-sm font-medium">ลบใบเสนอราคา {quote.quoteNumber}</p>
-            <p className="text-xs text-muted-foreground">ลบแล้วเลขที่นี้จะไม่ถูกนำกลับมาใช้ซ้ำ</p>
+            <p className="text-xs text-muted-foreground">
+              ใบที่เคยส่งให้ลูกค้าแล้ว เลขที่นี้จะไม่ถูกใช้ซ้ำ · ถ้าเป็นใบสุดท้ายของคำขอ คำขอจะกลับเป็น “ติดต่อแล้ว”
+            </p>
           </div>
           <ConfirmSubmitButton variant="outline" size="sm" pendingLabel="กำลังลบ">
             ลบถาวร

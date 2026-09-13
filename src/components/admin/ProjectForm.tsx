@@ -12,6 +12,7 @@ import {
   VersionField,
 } from '@/components/admin/AdminUI'
 import { AdminCard } from '@/components/admin/AdminPage'
+import { AdminForm } from '@/components/admin/AdminForm'
 import { useActionToast } from '@/components/ui/Toast'
 import { ImageField, ImageListField } from '@/components/admin/ImageField'
 import { buttonClasses } from '@/components/ui/Button'
@@ -76,14 +77,21 @@ export const emptyProject: ProjectFormData = {
 }
 
 export function ProjectForm({ project }: { project: ProjectFormData }) {
-  const [state, formAction] = useActionState(saveProject, initialAdminState)
+  const [state, formAction, isPending] = useActionState(saveProject, initialAdminState)
 
   useActionToast(state)
   const isEditing = Boolean(project.id)
 
   return (
     <div className="space-y-6">
-      <form action={formAction} className="space-y-6">
+      <AdminForm
+        action={formAction}
+        state={state}
+        isPending={isPending}
+        guardLabel="ผลงาน"
+        saveLabel={isEditing ? 'บันทึกการแก้ไข' : 'สร้างผลงาน'}
+        className="space-y-6"
+      >
         {isEditing && (
           <>
             <input type="hidden" name="id" value={project.id} />
@@ -248,7 +256,7 @@ export function ProjectForm({ project }: { project: ProjectFormData }) {
             ยกเลิก
           </Link>
         </div>
-      </form>
+      </AdminForm>
 
       {isEditing && (
         <form

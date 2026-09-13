@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useActionState } from 'react'
 import { ContentStatus } from '@/generated/prisma/enums'
 import { AdminCard } from '@/components/admin/AdminPage'
+import { AdminForm } from '@/components/admin/AdminForm'
 import { useActionToast } from '@/components/ui/Toast'
 import {
   BilingualTabs,
@@ -53,14 +54,21 @@ export const emptyPost: PostFormData = {
 }
 
 export function PostForm({ post }: { post: PostFormData }) {
-  const [state, formAction] = useActionState(savePost, initialAdminState)
+  const [state, formAction, isPending] = useActionState(savePost, initialAdminState)
 
   useActionToast(state)
   const isEditing = Boolean(post.id)
 
   return (
     <div className="space-y-6">
-      <form action={formAction} className="space-y-6">
+      <AdminForm
+        action={formAction}
+        state={state}
+        isPending={isPending}
+        guardLabel="บทความ"
+        saveLabel={isEditing ? 'บันทึกการแก้ไข' : 'สร้างบทความ'}
+        className="space-y-6"
+      >
         {isEditing && (
           <>
             <input type="hidden" name="id" value={post.id} />
@@ -146,7 +154,7 @@ export function PostForm({ post }: { post: PostFormData }) {
             ยกเลิก
           </Link>
         </div>
-      </form>
+      </AdminForm>
 
       {isEditing && (
         <form

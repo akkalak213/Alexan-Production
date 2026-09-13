@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { useActionState, useState } from 'react'
 import { PriceUnit } from '@/generated/prisma/enums'
 import { SubmitButton, VersionField } from '@/components/admin/AdminUI'
+import { AdminForm } from '@/components/admin/AdminForm'
 import { useActionToast } from '@/components/ui/Toast'
 import { FormMessage, Input, Select, Textarea } from '@/components/ui/Form'
 import { priceUnitLabels } from '@/lib/admin-labels'
@@ -40,7 +41,7 @@ export function ServicePackagesForm({
   version: string
   initial: PackageRow[]
 }) {
-  const [state, formAction] = useActionState(saveServicePackages, initialAdminState)
+  const [state, formAction, isPending] = useActionState(saveServicePackages, initialAdminState)
 
   useActionToast(state)
 
@@ -62,7 +63,14 @@ export function ServicePackagesForm({
   const popularIndex = rows.findIndex((entry) => entry.id === popularId)
 
   return (
-    <form action={formAction} className="space-y-5">
+    <AdminForm
+      action={formAction}
+      state={state}
+      isPending={isPending}
+      guardLabel="แพ็กเกจ"
+      saveLabel="บันทึกแพ็กเกจ"
+      className="space-y-5"
+    >
       <input type="hidden" name="serviceId" value={serviceId} />
       <VersionField initial={version} state={state} />
       <input type="hidden" name="pkgPopular" value={popularIndex >= 0 ? popularIndex : ''} />
@@ -168,6 +176,6 @@ export function ServicePackagesForm({
         กดบันทึกแล้วแพ็กเกจเดิมทั้งหมดจะถูกแทนที่ด้วยรายการที่เห็นบนหน้านี้
       </p>
       <SubmitButton>บันทึกแพ็กเกจ</SubmitButton>
-    </form>
+    </AdminForm>
   )
 }

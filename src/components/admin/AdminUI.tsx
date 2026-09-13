@@ -1,12 +1,13 @@
 'use client'
 
 import { Plus, Trash2 } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
-import { useFormStatus } from 'react-dom'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { flushSync, useFormStatus } from 'react-dom'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Form'
 import { cn } from '@/lib/utils'
 import type { AdminActionState } from '@/server/admin-state'
+import { REVEAL_EVENT, useAdminFormPending } from './admin-form-context'
 
 /**
  * ชิ้นส่วนฟอร์มที่หน้า CMS ทุกหน้าใช้ร่วมกัน
@@ -69,9 +70,13 @@ export function SubmitButton({
   size?: 'sm' | 'md' | 'lg'
 }) {
   const { pending } = useFormStatus()
+  // ฟอร์มใน AdminForm ส่งข้อมูลเอง useFormStatus จึงไม่รู้ อ่านสถานะจาก AdminForm ด้วย
+  const formPending = useAdminFormPending()
+  const busy = pending || formPending
+
   return (
-    <Button type="submit" disabled={pending} {...props}>
-      {pending ? pendingLabel : children}
+    <Button type="submit" disabled={busy} {...props}>
+      {busy ? pendingLabel : children}
     </Button>
   )
 }
@@ -176,9 +181,25 @@ export function BilingualTabs({
   className?: string
 }) {
   const [locale, setLocale] = useState<'th' | 'en'>('th')
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  // ช่องที่ต้องแก้อยู่ในแท็บที่ซ่อนอยู่ สลับให้เห็นทันทีก่อน AdminForm เลื่อนไปโฟกัส
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+
+    const onReveal = (event: Event) => {
+      const panel = event.target instanceof Element ? event.target.closest('[data-locale-panel]') : null
+      const code = panel?.getAttribute('data-locale-panel')
+      if (code === 'th' || code === 'en') flushSync(() => setLocale(code))
+    }
+
+    root.addEventListener(REVEAL_EVENT, onReveal)
+    return () => root.removeEventListener(REVEAL_EVENT, onReveal)
+  }, [])
 
   return (
-    <div className={cn('rounded-lg border border-border', className)}>
+    <div ref={rootRef} className={cn('rounded-lg border border-border', className)}>
       <div className="flex border-b border-border">
         {(['th', 'en'] as const).map((code) => (
           <button
@@ -199,10 +220,10 @@ export function BilingualTabs({
       </div>
 
       <div className="p-5">
-        <div hidden={locale !== 'th'} className="space-y-4">
+        <div hidden={locale !== 'th'} data-locale-panel="th" className="space-y-4">
           {th}
         </div>
-        <div hidden={locale !== 'en'} className="space-y-4">
+        <div hidden={locale !== 'en'} data-locale-panel="en" className="space-y-4">
           {en}
         </div>
       </div>

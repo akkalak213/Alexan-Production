@@ -40,7 +40,8 @@ export const reviewSchema = z.object({
   submitterEmail: z.email().max(160).optional().or(z.literal('')),
   content: trimmed(20, 1500),
   rating: z.coerce.number().int().min(1).max(5),
-  serviceCategory: serviceCategoryEnum.optional().or(z.literal('')),
+  /** บริการที่ใช้ — บังคับเลือก รีวิวที่ไม่รู้ว่ามาจากงานไหนเอาไปแสดงคู่กับบริการนั้นไม่ได้ */
+  serviceCategory: serviceCategoryEnum,
   /** honeypot — บอตกรอก มนุษย์ไม่เห็น */
   website: z.literal('').optional(),
 })

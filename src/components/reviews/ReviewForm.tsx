@@ -2,7 +2,7 @@
 
 import { Star } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
-import { useActionState, useState } from 'react'
+import { useActionState, useEffect, useRef, useState } from 'react'
 import { ServiceCategory } from '@/generated/prisma/enums'
 import { Field, FormMessage, Honeypot, Input, Select, Textarea } from '@/components/ui/Form'
 import { Button } from '@/components/ui/Button'
@@ -12,14 +12,56 @@ import { cn } from '@/lib/utils'
 
 const categories = Object.values(ServiceCategory)
 
+/** ตรงกับ reviewSchema ใน src/lib/validations.ts */
+const MIN_CONTENT = 20
+const MAX_CONTENT = 1500
+
+type Draft = {
+  authorName: string
+  authorRole: string
+  submitterEmail: string
+  serviceCategory: string
+  content: string
+}
+
 export function ReviewForm() {
   const t = useTranslations('forms')
   const tReviews = useTranslations('reviews')
   const tCat = useTranslations('serviceCategory')
   const locale = useLocale()
+  const formRef = useRef<HTMLFormElement>(null)
 
   const [state, formAction, isPending] = useActionState(submitReview, initialActionState)
   const [rating, setRating] = useState(5)
+
+  /**
+   * เก็บค่าที่กรอกไว้ใน state
+   * React ล้างช่องที่ไม่ได้ผูก state ทุกครั้งหลังส่งฟอร์ม ถ้าส่งไม่ผ่าน รีวิวยาว ๆ ที่พิมพ์ไว้จะหายหมด
+   */
+  const [draft, setDraft] = useState<Draft>({
+    authorName: '',
+    authorRole: '',
+    submitterEmail: '',
+    serviceCategory: '',
+    content: '',
+  })
+  const setField = (name: keyof Draft) => (event: { target: { value: string } }) =>
+    setDraft({ ...draft, [name]: event.target.value })
+
+  // ส่งไม่ผ่าน พาไปที่ช่องแรกที่ต้องแก้
+  useEffect(() => {
+    if (state.status === 'error') formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
+  }, [state])
+
+  // ข้อความจาก server เป็นภาษาอังกฤษของ zod — แสดงข้อความตามภาษาของหน้าแทน
+  const fieldError = (name: keyof Draft) =>
+    state.fieldErrors?.[name]?.length ? [t(`validation.${name}`)] : undefined
+
+  const contentLength = draft.content.trim().length
+  const contentHint =
+    contentLength < MIN_CONTENT
+      ? t('reviewNeedMore', { count: MIN_CONTENT - contentLength })
+      : t('reviewLength', { count: contentLength })
 
   // แปลง messageKey ที่ action ส่งกลับมาให้เป็นข้อความตามภาษา
   // เขียนเป็น map ตายตัวเพื่อให้ TypeScript ตรวจได้ว่าคีย์มีอยู่จริงในไฟล์แปล
@@ -38,9 +80,10 @@ export function ReviewForm() {
   }
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form ref={formRef} action={formAction} className="space-y-5">
       <Honeypot />
       <input type="hidden" name="locale" value={locale} />
+      <p className="text-sm text-muted-foreground">{t('requiredNote')}</p>
 
       <fieldset>
         <legend className="mb-2 text-sm font-medium">
@@ -78,48 +121,33 @@ export function ReviewForm() {
       </fieldset>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field htmlFor="authorName" label={t('yourName')} required error={state.fieldErrors?.authorName}>
+        <Field htmlFor="authorName" label={t('yourName')} required error={fieldError('authorName')}>
           <Input
             id="authorName"
             name="authorName"
+            value={draft.authorName}
+            onChange={setField('authorName')}
             required
+            minLength={2}
             maxLength={80}
             autoComplete="name"
             placeholder={t('namePlaceholder')}
-            aria-invalid={Boolean(state.fieldErrors?.authorName)}
+            aria-invalid={Boolean(fieldError('authorName'))}
           />
         </Field>
 
-        <Field htmlFor="authorRole" label={t('yourRole')} error={state.fieldErrors?.authorRole}>
-          <Input
-            id="authorRole"
-            name="authorRole"
-            maxLength={120}
-            placeholder={t('yourRolePlaceholder')}
-          />
-        </Field>
-      </div>
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field
-          htmlFor="submitterEmail"
-          label={t('email')}
-          hint={t('emailPrivateNote')}
-          error={state.fieldErrors?.submitterEmail}
-        >
-          <Input
-            id="submitterEmail"
-            name="submitterEmail"
-            type="email"
-            autoComplete="email"
-            placeholder={t('emailPlaceholder')}
-            aria-invalid={Boolean(state.fieldErrors?.submitterEmail)}
-          />
-        </Field>
-
-        <Field htmlFor="serviceCategory" label={t('serviceUsed')}>
-          <Select id="serviceCategory" name="serviceCategory" defaultValue="">
-            <option value="">{t('selectService')}</option>
+        <Field htmlFor="serviceCategory" label={t('serviceUsed')} required error={fieldError('serviceCategory')}>
+          <Select
+            id="serviceCategory"
+            name="serviceCategory"
+            value={draft.serviceCategory}
+            onChange={setField('serviceCategory')}
+            required
+            aria-invalid={Boolean(fieldError('serviceCategory'))}
+          >
+            <option value="" disabled>
+              {t('selectService')}
+            </option>
             {categories.map((category) => (
               <option key={category} value={category}>
                 {tCat(category)}
@@ -129,20 +157,54 @@ export function ReviewForm() {
         </Field>
       </div>
 
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field htmlFor="authorRole" label={t('yourRole')} error={fieldError('authorRole')}>
+          <Input
+            id="authorRole"
+            name="authorRole"
+            value={draft.authorRole}
+            onChange={setField('authorRole')}
+            maxLength={120}
+            placeholder={t('yourRolePlaceholder')}
+          />
+        </Field>
+
+        <Field
+          htmlFor="submitterEmail"
+          label={t('email')}
+          hint={t('emailPrivateNote')}
+          error={fieldError('submitterEmail')}
+        >
+          <Input
+            id="submitterEmail"
+            name="submitterEmail"
+            type="email"
+            value={draft.submitterEmail}
+            onChange={setField('submitterEmail')}
+            autoComplete="email"
+            placeholder={t('emailPlaceholder')}
+            aria-invalid={Boolean(fieldError('submitterEmail'))}
+          />
+        </Field>
+      </div>
+
       <Field
         htmlFor="content"
         label={t('reviewContent')}
+        hint={contentHint}
         required
-        error={state.fieldErrors?.content}
+        error={fieldError('content')}
       >
         <Textarea
           id="content"
           name="content"
+          value={draft.content}
+          onChange={setField('content')}
           required
-          minLength={20}
-          maxLength={1500}
+          minLength={MIN_CONTENT}
+          maxLength={MAX_CONTENT}
           placeholder={t('reviewContentPlaceholder')}
-          aria-invalid={Boolean(state.fieldErrors?.content)}
+          aria-invalid={Boolean(fieldError('content'))}
         />
       </Field>
 

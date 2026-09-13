@@ -18,7 +18,14 @@ import {
 import { quoteEmail } from '@/lib/quote-email'
 import type { AdminActionState } from './admin-state'
 import { integer, optionalText, requireEditor, STALE_WRITE_MESSAGE, text, versionOf } from './cms-helpers'
-import { documentPrefix, nextDocumentNumber, withUniqueRetry } from './document-numbers'
+import {
+  burnDocumentNumber,
+  DOCUMENT_NUMBERS_SETTING,
+  documentPrefix,
+  nextDocumentNumber,
+  readBurnedNumbers,
+  withUniqueRetry,
+} from './document-numbers'
 
 const statusSchema = z.enum(Object.values(QuoteStatus) as [QuoteStatus, ...QuoteStatus[]])
 
@@ -58,15 +65,15 @@ export async function saveQuote(
 
   const id = optionalText(formData, 'id')
   const customerName = text(formData, 'customerName')
-  if (!customerName) return { status: 'error', message: 'ต้องกรอกชื่อลูกค้า' }
+  if (!customerName) return { status: 'error', message: 'ต้องกรอกชื่อลูกค้า', field: 'customerName' }
 
   const customerEmail = text(formData, 'customerEmail')
   if (!z.email().safeParse(customerEmail).success) {
-    return { status: 'error', message: 'อีเมลลูกค้าไม่ถูกต้อง' }
+    return { status: 'error', message: 'อีเมลลูกค้าไม่ถูกต้อง', field: 'customerEmail' }
   }
 
   const lines = readLines(formData)
-  if (lines.length === 0) return { status: 'error', message: 'ต้องมีรายการอย่างน้อยหนึ่งรายการ' }
+  if (lines.length === 0) return { status: 'error', message: 'ต้องมีรายการอย่างน้อยหนึ่งรายการ', field: 'itemDescription' }
 
   // ช่องที่ลบจนว่างถือเป็นศูนย์ ตรงกับที่ฟอร์มคำนวณให้เห็นบนจอ
   const discount = text(formData, 'discount')
@@ -85,7 +92,7 @@ export async function saveQuote(
   const validUntil = validUntilRaw
     ? new Date(validUntilRaw)
     : new Date(Date.now() + integer(formData, 'validDays', 30) * 86_400_000)
-  if (Number.isNaN(validUntil.getTime())) return { status: 'error', message: 'วันยืนราคาไม่ถูกต้อง' }
+  if (Number.isNaN(validUntil.getTime())) return { status: 'error', message: 'วันยืนราคาไม่ถูกต้อง', field: 'validUntil' }
 
   const totals = computeQuoteTotals({ lines, discount, vatRate, withholdingRate })
 
@@ -166,11 +173,15 @@ export async function saveQuote(
           where: { quoteNumber: { startsWith: `${prefix}-` } },
           select: { quoteNumber: true },
         })
+        // เลขของใบที่ลบไปแล้วแต่ลูกค้าเคยได้รับ นับรวมด้วย ใบใหม่จะได้ไม่ซ้ำกับเอกสารที่ลูกค้าถืออยู่
+        const sequence = await tx.siteSetting.findUnique({ where: { key: DOCUMENT_NUMBERS_SETTING } })
+        const burned = readBurnedNumbers(sequence?.value)[prefix]
+        const taken = [...used.map((row) => row.quoteNumber), ...(burned ? [burned] : [])]
 
         const quote = await tx.quote.create({
           data: {
             ...data,
-            quoteNumber: nextDocumentNumber(prefix, used.map((row) => row.quoteNumber), attempt),
+            quoteNumber: nextDocumentNumber(prefix, taken, attempt),
             createdById: user.id,
             items: { create: items },
           },
@@ -236,16 +247,57 @@ export async function updateQuoteStatus(formData: FormData) {
   revalidatePath('/admin')
 }
 
+/**
+ * ลบใบเสนอราคาถาวร
+ *
+ * ใบที่เคยส่งอีเมลให้ลูกค้าแล้ว จดเลขที่ไว้ไม่ให้ใบใหม่ได้เลขเดียวกัน ใบที่ไม่เคยส่งปล่อยเลขให้ใช้ต่อได้
+ * ถ้าเป็นใบสุดท้ายของคำขอ คำขอที่ค้างเป็น "เสนอราคาแล้ว" กลับเป็น "ติดต่อแล้ว" ให้ตรงกับความจริง
+ */
 export async function deleteQuote(formData: FormData) {
   await requireEditor()
 
+  const id = text(formData, 'id')
+  let leadId: string | null = null
+
   try {
-    await db.quote.delete({ where: { id: text(formData, 'id') } })
+    leadId = await db.$transaction(async (tx) => {
+      const quote = await tx.quote.findUnique({
+        where: { id },
+        select: { quoteNumber: true, sentAt: true, leadId: true },
+      })
+      if (!quote) return null
+
+      await tx.quote.delete({ where: { id } })
+
+      if (quote.sentAt) {
+        const row = await tx.siteSetting.findUnique({ where: { key: DOCUMENT_NUMBERS_SETTING } })
+        const burned = burnDocumentNumber(readBurnedNumbers(row?.value), quote.quoteNumber)
+        await tx.siteSetting.upsert({
+          where: { key: DOCUMENT_NUMBERS_SETTING },
+          create: { key: DOCUMENT_NUMBERS_SETTING, value: { burned } },
+          update: { value: { burned } },
+        })
+      }
+
+      if (quote.leadId) {
+        const remaining = await tx.quote.count({ where: { leadId: quote.leadId } })
+        if (remaining === 0) {
+          await tx.lead.updateMany({ where: { id: quote.leadId, status: 'QUOTED' }, data: { status: 'CONTACTED' } })
+        }
+      }
+
+      return quote.leadId
+    })
   } catch (error) {
     console.error('[quote:delete]', error)
   }
 
+  if (leadId) {
+    revalidatePath(`/admin/leads/${leadId}`)
+    revalidatePath('/admin/leads')
+  }
   revalidatePath('/admin/quotes')
+  revalidatePath('/admin')
   redirect('/admin/quotes')
 }
 
