@@ -305,8 +305,17 @@ export default async function EquipmentDetailPage({
             <LeadForm
               source="RENTAL"
               showServicePicker={false}
-              equipmentIds={[item.id]}
-              equipmentLabels={[name]}
+              rental={{
+                items: [
+                  {
+                    id: item.id,
+                    label: name,
+                    dailyRate: toNumber(item.dailyRate),
+                    weeklyRate: toNumber(item.weeklyRate),
+                    deposit: toNumber(item.depositAmount),
+                  },
+                ],
+              }}
             />
           </div>
         </div>

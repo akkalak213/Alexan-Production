@@ -65,7 +65,11 @@ export function QuoteActions({
         <div className="flex flex-wrap items-center gap-2.5">
           <span className="text-sm font-medium">สถานะ</span>
           <StatusPill tone={isExpired ? 'warning' : tone[status]}>
-            {isExpired ? 'เลยกำหนดยืนราคา' : quoteStatusLabels[status]}
+            {isExpired
+              ? 'เลยกำหนดยืนราคา'
+              : status === 'SENT' && !sentAt
+                ? 'บันทึกว่าส่งแล้ว แต่ยังไม่เคยส่งอีเมล'
+                : quoteStatusLabels[status]}
           </StatusPill>
         </div>
 
@@ -87,12 +91,19 @@ export function QuoteActions({
         </ul>
       )}
 
+      {/* บันทึกใบเสนอราคาไม่ได้ส่งอีเมล — บอกให้ชัดก่อนทีมขายเข้าใจว่าลูกค้าได้รับแล้ว */}
+      {!sentAt && (status === 'DRAFT' || status === 'SENT') && (
+        <p className="mt-4 rounded-md border border-warning/40 bg-warning/10 px-3.5 py-2.5 text-sm text-pretty">
+          ลูกค้ายังไม่ได้รับใบเสนอราคานี้ การบันทึกไม่ได้ส่งอีเมล กด &ldquo;ส่งให้ลูกค้าทางอีเมล&rdquo; เมื่อพร้อม
+        </p>
+      )}
+
       <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-border pt-5">
         <form action={sendAction}>
           <input type="hidden" name="id" value={id} />
           <SubmitButton variant="accent" size="sm" pendingLabel="กำลังส่ง">
             <Send size={15} strokeWidth={1.75} aria-hidden />
-            {status === 'DRAFT' ? 'ส่งให้ลูกค้าทางอีเมล' : 'ส่งอีเมลอีกครั้ง'}
+            {sentAt ? 'ส่งอีเมลอีกครั้ง' : 'ส่งให้ลูกค้าทางอีเมล'}
           </SubmitButton>
         </form>
 

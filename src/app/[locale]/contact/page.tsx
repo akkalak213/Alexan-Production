@@ -4,11 +4,12 @@ import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { localizedPath, type Locale } from '@/i18n/routing'
 import { pageMetadata } from '@/lib/seo'
 import { LeadForm } from '@/components/forms/LeadForm'
-import { formatPrice, toNumber } from '@/lib/format'
+import { equipmentName, formatPrice, toNumber } from '@/lib/format'
+import { parseRentalDays } from '@/lib/rental-request'
 import { getSiteSettings } from '@/lib/settings'
 import { safeExternalUrl } from '@/lib/external-link'
 import { budgetRangeFor } from '@/lib/validations'
-import { getPackageForQuote } from '@/server/queries'
+import { getEquipmentByIds, getPackageForQuote } from '@/server/queries'
 import { JsonLd } from '@/components/JsonLd'
 import { breadcrumbSchema, webPageSchema } from '@/lib/structured-data'
 
@@ -47,21 +48,38 @@ export default async function ContactPage({
   searchParams,
 }: {
   params: Promise<{ locale: Locale }>
-  searchParams: Promise<{ package?: string }>
+  searchParams: Promise<{ package?: string; items?: string; days?: string }>
 }) {
   const { locale } = await params
-  const { package: packageId } = await searchParams
+  const { package: packageId, items, days } = await searchParams
   setRequestLocale(locale)
 
-  const [t, tc, tNav, settings, pkg] = await Promise.all([
+  // อุปกรณ์ที่ส่งต่อมาจากใบเสนอราคาเบื้องต้น — URL มีแค่ id เรตอ่านจากฐานข้อมูลเสมอ
+  const equipmentIds = [...new Set((items ?? '').split(',').map((id) => id.trim()).filter(Boolean))].slice(0, 30)
+
+  const [t, tc, tNav, settings, pkg, equipment] = await Promise.all([
     getTranslations('contact'),
     getTranslations('common'),
     getTranslations('nav'),
     getSiteSettings(),
     packageId ? getPackageForQuote(packageId) : null,
+    getEquipmentByIds(equipmentIds),
   ])
   const { company, social } = settings
   const isThai = locale === 'th'
+
+  const rental = equipment.length
+    ? {
+        items: equipment.map((item) => ({
+          id: item.id,
+          label: equipmentName(item.brand, item.model),
+          dailyRate: toNumber(item.dailyRate),
+          weeklyRate: toNumber(item.weeklyRate),
+          deposit: toNumber(item.depositAmount),
+        })),
+        days: parseRentalDays(days),
+      }
+    : undefined
 
   /**
    * แพ็กเกจที่ลูกค้ากดมาจากหน้าบริการ
@@ -161,11 +179,12 @@ export default async function ContactPage({
             id="lead-form"
             className="scroll-mt-24 rounded-lg border border-border bg-surface p-7 md:p-9"
           >
-            <h2 className="mb-7 font-display text-2xl">{t('formTitle')}</h2>
+            <h2 className="mb-7 font-display text-2xl">{rental ? t('rentalFormTitle') : t('formTitle')}</h2>
             <LeadForm
-              source={initialPackage ? 'QUOTE' : 'CONTACT'}
+              source={rental ? 'RENTAL' : initialPackage ? 'QUOTE' : 'CONTACT'}
               initialPackage={initialPackage}
               defaultService={pkg?.service.category}
+              rental={rental}
             />
           </div>
 

@@ -149,7 +149,11 @@ export default async function RentalEstimatePage({ params, searchParams }: Param
             {t('backToRental')}
           </Link>
           <div className="flex flex-wrap items-center gap-3">
-            <Link href="/contact" className={buttonClasses('outline', 'md')}>
+            {/* ส่งอุปกรณ์กับจำนวนวันต่อไปที่ฟอร์ม เดิมลิงก์ไป /contact เปล่า ๆ ลูกค้าต้องเลือกใหม่หรือพิมพ์บอกเอง */}
+            <Link
+              href={{ pathname: '/contact', query: { items: itemsParam, days }, hash: 'lead-form' }}
+              className={buttonClasses('outline', 'md')}
+            >
               {t('requestFormal')}
             </Link>
             <PrintButton label={t('print')} />

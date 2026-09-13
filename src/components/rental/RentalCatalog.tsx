@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from '@/i18n/navigation'
 import { Button, buttonClasses } from '@/components/ui/Button'
 import { LeadForm } from '@/components/forms/LeadForm'
+import { equipmentName } from '@/lib/format'
 import {
   getSelectionServerSnapshot,
   getSelectionSnapshot,
@@ -125,8 +126,15 @@ export function RentalCatalog({ items }: { items: EquipmentCardData[] }) {
           <LeadForm
             source="RENTAL"
             showServicePicker={false}
-            equipmentIds={selected.map((item) => item.id)}
-            equipmentLabels={selected.map((item) => `${item.brand} ${item.model}`)}
+            rental={{
+              items: selected.map((item) => ({
+                id: item.id,
+                label: equipmentName(item.brand, item.model),
+                dailyRate: item.dailyRate,
+                weeklyRate: item.weeklyRate,
+                deposit: item.deposit,
+              })),
+            }}
           />
         </div>
       )}

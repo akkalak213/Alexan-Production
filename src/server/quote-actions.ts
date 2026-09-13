@@ -76,9 +76,11 @@ export async function saveQuote(
   const problem = quoteInputProblem({ lines, discount, vatRate, withholdingRate })
   if (problem) return { status: 'error', message: problem }
 
-  const status = statusSchema.safeParse(text(formData, 'status'))
-  if (!status.success) return { status: 'error', message: 'สถานะใบเสนอราคาไม่ถูกต้อง' }
-
+  /**
+   * การบันทึกไม่เปลี่ยนสถานะ ใบใหม่เริ่มเป็นฉบับร่างเสมอ
+   * เดิมฟอร์มส่งสถานะมาด้วย เลือก "ส่งแล้ว" แล้วบันทึกได้โดยไม่มีอีเมลออกไปจริง
+   * สถานะ "ส่งแล้ว" จึงเกิดได้จาก sendQuoteToCustomer หรือกดบันทึกผลเองในแผงสถานะเท่านั้น
+   */
   const validUntilRaw = text(formData, 'validUntil')
   const validUntil = validUntilRaw
     ? new Date(validUntilRaw)
@@ -115,7 +117,6 @@ export async function saveQuote(
     total: totals.total,
     notes: optionalText(formData, 'notes'),
     termsText: optionalText(formData, 'termsText'),
-    status: status.data,
   }
 
   if (id) {

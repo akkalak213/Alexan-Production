@@ -1,5 +1,5 @@
 import { bahtText } from './baht-text'
-import { escapeHtml } from './mail'
+import { escapeHtml } from './email-html'
 
 /**
  * อีเมลใบเสนอราคาที่ส่งให้ลูกค้า

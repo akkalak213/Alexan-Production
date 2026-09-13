@@ -106,7 +106,26 @@ export default async function AdminLeadsPage({
                     {lead.company && ` · ${lead.company}`}
                     {` · ${leadSourceLabels[lead.source]}`}
                     {lead.budgetRange && ` · ${budgetLabels[lead.budgetRange] ?? lead.budgetRange}`}
+                    {lead.preferredDate && ` · ใช้งาน ${formatDate(lead.preferredDate, 'th')}`}
                   </p>
+
+                  {lead.items.length > 0 && (
+                    <p className="mt-1.5 flex flex-wrap gap-1.5">
+                      {lead.items.map((item, index) => (
+                        <span
+                          key={`${item.labelSnapshot}-${index}`}
+                          className="rounded bg-accent-subtle px-1.5 py-0.5 text-[0.7rem] text-accent"
+                        >
+                          {item.labelSnapshot}
+                        </span>
+                      ))}
+                      {lead._count.items > lead.items.length && (
+                        <span className="px-1 py-0.5 text-[0.7rem] text-muted-foreground">
+                          +{lead._count.items - lead.items.length}
+                        </span>
+                      )}
+                    </p>
+                  )}
 
                   {lead.services.length > 0 && (
                     <p className="mt-1.5 flex flex-wrap gap-1.5">

@@ -8,6 +8,8 @@ export type ActionState = {
   status: 'idle' | 'success' | 'error'
   messageKey?: string
   refCode?: string
+  /** ส่งอีเมลสรุปคำขอถึงผู้กรอกด้วยหรือไม่ (ตั้งค่าอีเมลขาออกไว้แล้ว) */
+  receiptSent?: boolean
   fieldErrors?: Record<string, string[]>
 }
 

@@ -2,9 +2,15 @@
 
 import { after } from 'next/server'
 import type { ServiceCategory } from '@/generated/prisma/enums'
+import { bangkokMidnight } from '@/lib/bangkok-time'
 import { db } from '@/lib/db'
-import { emailShell, renderRows, sendInternalNotification } from '@/lib/mail'
+import { clientEnv, isMailConfigured } from '@/lib/env'
+import { equipmentName, toNumber } from '@/lib/format'
+import { leadNotificationEmail, leadReceiptEmail, type LeadEmailData, type LeadEmailRental } from '@/lib/lead-email'
+import { emailShell, renderRows, sendInternalNotification, sendMail } from '@/lib/mail'
 import { getClientIpHash, getUserAgent, isRateLimited } from '@/lib/rate-limit'
+import { rentalRequestEstimate } from '@/lib/rental-request'
+import { getSiteSettings } from '@/lib/settings'
 import { leadSchema, reviewSchema } from '@/lib/validations'
 import type { ActionState } from './action-state'
 import { documentPrefix, nextDocumentNumber, withUniqueRetry } from './document-numbers'
@@ -12,7 +18,7 @@ import { documentPrefix, nextDocumentNumber, withUniqueRetry } from './document-
 /**
  * Server action ของฟอร์มสาธารณะ — ชนิดของ state อยู่ที่ ./action-state
  *
- * อีเมลแจ้งทีมส่งหลังตอบกลับผู้กรอกแล้ว (after) ไม่ใช่ก่อน
+ * อีเมลส่งหลังตอบกลับผู้กรอกแล้ว (after) ไม่ใช่ก่อน
  * เดิมผู้กรอกต้องรอ Resend ตอบอีกครึ่งวินาทีถึงหนึ่งวินาทีกว่าปุ่มจะขึ้นว่าส่งสำเร็จ
  * ข้อมูลบันทึกลงฐานข้อมูลก่อนตอบกลับเสมอ อีเมลเป็นแค่การแจ้งเตือน ถ้าส่งไม่ได้คำขอก็ไม่หาย
  */
@@ -115,6 +121,8 @@ export async function submitLead(_prev: ActionState, formData: FormData): Promis
     budgetRange: formData.get('budgetRange') ?? '',
     message: formData.get('message') ?? '',
     equipmentIds: formData.getAll('equipmentIds').map(String).filter(Boolean),
+    startDate: formData.get('startDate') ?? '',
+    rentalDays: formData.get('rentalDays') ?? '',
     packageId: formData.get('packageId') ?? '',
     packageName: formData.get('packageName') ?? '',
     packagePriceTag: formData.get('packagePriceTag') ?? '',
@@ -147,6 +155,8 @@ export async function submitLead(_prev: ActionState, formData: FormData): Promis
     budgetRange,
     message,
     equipmentIds,
+    startDate,
+    rentalDays,
     source,
     packageId,
     packageName,
@@ -154,17 +164,42 @@ export async function submitLead(_prev: ActionState, formData: FormData): Promis
   } = parsed.data
 
   let refCode: string
-  let equipmentLabels: string[]
+  let leadId: string
+  let rental: LeadEmailRental | null = null
 
   try {
     // เก็บชื่ออุปกรณ์ ณ เวลาที่ขอไว้ด้วย เผื่ออุปกรณ์ถูกลบหรือเปลี่ยนชื่อภายหลัง
     const equipment = equipmentIds.length
       ? await db.equipment.findMany({
           where: { id: { in: equipmentIds } },
-          select: { id: true, brand: true, model: true },
+          select: { id: true, brand: true, model: true, dailyRate: true, weeklyRate: true, depositAmount: true },
         })
       : []
-    equipmentLabels = equipment.map((item) => `${item.brand} ${item.model}`)
+
+    // จำนวนวันกับวันที่เริ่มใช้มีความหมายเฉพาะคำขอที่มีอุปกรณ์
+    const days = equipment.length && rentalDays ? rentalDays : null
+    const preferredDate = equipment.length && startDate ? startDate : null
+
+    if (equipment.length) {
+      const estimate = rentalRequestEstimate(
+        equipment.map((item) => ({
+          id: item.id,
+          label: equipmentName(item.brand, item.model),
+          dailyRate: toNumber(item.dailyRate),
+          weeklyRate: toNumber(item.weeklyRate),
+          deposit: toNumber(item.depositAmount),
+        })),
+        days ?? 1,
+      )
+      rental = {
+        startDate: preferredDate,
+        days,
+        items: estimate.lines,
+        subtotal: estimate.subtotal,
+        deposit: estimate.deposit,
+        hasOnRequest: estimate.hasOnRequest,
+      }
+    }
 
     const prefix = documentPrefix('AX')
 
@@ -188,6 +223,7 @@ export async function submitLead(_prev: ActionState, formData: FormData): Promis
           locale,
           source,
           ipHash,
+          preferredDate: preferredDate ? bangkokMidnight(preferredDate) : null,
           // เก็บ id ไว้เชื่อมกลับหาแพ็กเกจ และเก็บชื่อกับราคาเป็นข้อความคู่กัน
           // เผื่อแพ็กเกจถูกแก้ราคาหรือถูกลบ ทีมขายจะยังรู้ว่าตอนลูกค้ากดเห็นราคาเท่าไหร่
           packageId: packageId || null,
@@ -196,41 +232,59 @@ export async function submitLead(_prev: ActionState, formData: FormData): Promis
           items: {
             create: equipment.map((item) => ({
               equipmentId: item.id,
-              labelSnapshot: `${item.brand} ${item.model}`,
+              labelSnapshot: equipmentName(item.brand, item.model),
+              days,
             })),
           },
         },
-        select: { refCode: true },
+        select: { id: true, refCode: true },
       })
     })
 
     refCode = lead.refCode
+    leadId = lead.id
   } catch (error) {
     console.error('[action:submitLead] บันทึกไม่สำเร็จ', error)
     return { status: 'error', messageKey: 'serverError' }
   }
 
-  after(() =>
-    sendInternalNotification({
-      subject: `คำขอใหม่ ${refCode} · ${name}`,
-      replyTo: email,
-      html: emailShell(
-        `คำขอใหม่จากเว็บไซต์ · ${refCode}`,
-        renderRows([
-          ['ชื่อ', name],
-          ['อีเมล', email],
-          ['โทร', phone],
-          ['บริษัท', company],
-          ['ที่มา', source],
-          ['บริการที่สนใจ', services.join(', ')],
-          ['งบประมาณ', budgetRange],
-          ['แพ็กเกจที่เลือก', packageName ? `${packageName} (${packagePriceTag})` : ''],
-          ['อุปกรณ์', equipmentLabels.join('\n')],
-          ['ข้อความ', message],
-        ]),
-      ),
-    }),
-  )
+  const emailData: LeadEmailData = {
+    refCode,
+    locale,
+    source,
+    name,
+    email,
+    phone: phone || null,
+    company: company || null,
+    services,
+    budgetRange: budgetRange || null,
+    packageName: packageName || null,
+    packagePriceTag: packagePriceTag || null,
+    message,
+    rental,
+  }
 
-  return { status: 'success', messageKey: 'leadSuccess', refCode }
+  after(async () => {
+    const siteUrl = clientEnv.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')
+    const { company: settings } = await getSiteSettings()
+
+    const notification = leadNotificationEmail(emailData, {
+      lead: `${siteUrl}/admin/leads/${leadId}`,
+      newQuote: `${siteUrl}/admin/quotes/new?leadId=${leadId}`,
+    })
+    const receipt = leadReceiptEmail(emailData, {
+      name: settings.nameEn || 'Alexan Production',
+      phone: settings.phone,
+      email: settings.email,
+      lineId: settings.lineId,
+    })
+
+    await Promise.allSettled([
+      sendInternalNotification({ subject: notification.subject, html: notification.html, replyTo: email }),
+      // ลูกค้ากดตอบกลับแล้วต้องถึงกล่องจริงของทีม ไม่ใช่ที่อยู่ no-reply ที่ใช้ส่งออก
+      sendMail(email, { subject: receipt.subject, html: receipt.html, replyTo: settings.email || undefined }),
+    ])
+  })
+
+  return { status: 'success', messageKey: 'leadSuccess', refCode, receiptSent: isMailConfigured }
 }

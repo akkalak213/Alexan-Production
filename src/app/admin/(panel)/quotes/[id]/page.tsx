@@ -74,7 +74,6 @@ export default async function EditQuotePage({ params }: { params: Promise<{ id: 
           withholdingRate: asInput(quote.withholdingRate),
           notes: quote.notes ?? '',
           termsText: quote.termsText ?? '',
-          status: quote.status,
           items: quote.items.map((item) => ({
             description: item.description,
             quantity: asInput(item.quantity),

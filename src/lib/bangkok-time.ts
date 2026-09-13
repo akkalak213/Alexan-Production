@@ -20,6 +20,16 @@ export function bangkokYearMonth(date = new Date()): { year: string; month: stri
   }
 }
 
+/** วันที่ตามเวลาไทยในรูปแบบ YYYY-MM-DD เช่นช่องเลือกวันที่ในฟอร์ม */
+export function bangkokDateString(date = new Date()): string {
+  return new Date(date.getTime() + OFFSET_MS).toISOString().slice(0, 10)
+}
+
+/** เวลา 00:00 น. ตามเวลาไทยของวันที่ YYYY-MM-DD */
+export function bangkokMidnight(isoDate: string): Date {
+  return new Date(`${isoDate}T00:00:00+07:00`)
+}
+
 /** เวลา 00:00 น. วันที่ 1 ของเดือนนั้นตามเวลาไทย */
 export function startOfBangkokMonth(date = new Date()): Date {
   const shifted = new Date(date.getTime() + OFFSET_MS)

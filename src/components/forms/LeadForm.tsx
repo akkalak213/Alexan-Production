@@ -2,12 +2,23 @@
 
 import { Check } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
-import { useActionState, useEffect, useId, useRef, useState } from 'react'
+import { useActionState, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ServiceCategory } from '@/generated/prisma/enums'
 import { Button } from '@/components/ui/Button'
 import { Field, FormMessage, Honeypot, Input, Select, Textarea } from '@/components/ui/Form'
+import { bangkokDateString } from '@/lib/bangkok-time'
 import { cn } from '@/lib/utils'
 import { budgetRanges } from '@/lib/lead-options'
+import {
+  addDaysIso,
+  isIsoDate,
+  MAX_ADVANCE_DAYS,
+  MAX_RENTAL_DAYS,
+  parseRentalDays,
+  rentalEndDate,
+  rentalRequestEstimate,
+  type RentalRateItem,
+} from '@/lib/rental-request'
 import { initialActionState } from '@/server/action-state'
 import { submitLead } from '@/server/actions'
 import { usePackageSelection, type SelectedPackage } from '@/components/services/PackageSelection'
@@ -18,9 +29,11 @@ type Props = {
   source?: 'CONTACT' | 'QUOTE' | 'RENTAL' | 'SERVICE_PAGE'
   /** ติ๊กบริการไว้ล่วงหน้าเมื่อมาจากหน้าบริการใดบริการหนึ่ง */
   defaultService?: ServiceCategory
-  /** อุปกรณ์ที่ผู้ใช้เลือกไว้จากหน้า /rental */
-  equipmentIds?: string[]
-  equipmentLabels?: string[]
+  /**
+   * อุปกรณ์ที่ลูกค้าเลือกมา พร้อมเรต ใช้คำนวณค่าเช่าโดยประมาณให้เห็นก่อนกดส่ง
+   * days คือจำนวนวันที่เลือกมาจากใบเสนอราคาเบื้องต้น ถ้ามี
+   */
+  rental?: { items: RentalRateItem[]; days?: number }
   showServicePicker?: boolean
   /**
    * แพ็กเกจที่ลูกค้ากดมาจากหน้าบริการ ส่งมาจากฝั่งเซิร์ฟเวอร์ผ่าน URL
@@ -29,11 +42,20 @@ type Props = {
   initialPackage?: SelectedPackage | null
 }
 
+type Draft = {
+  name: string
+  email: string
+  phone: string
+  company: string
+  message: string
+  startDate: string
+  rentalDays: string
+}
+
 export function LeadForm({
   source = 'CONTACT',
   defaultService,
-  equipmentIds = [],
-  equipmentLabels = [],
+  rental,
   showServicePicker = true,
   initialPackage = null,
 }: Props) {
@@ -45,10 +67,45 @@ export function LeadForm({
   const fieldId = (name: string) => formId + '-' + name
   const formRef = useRef<HTMLFormElement>(null)
   const resultRef = useRef<HTMLDivElement>(null)
-  const [draft, setDraft] = useState({ name: '', email: '', phone: '', company: '', message: '' })
+  const [draft, setDraft] = useState<Draft>({
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    message: '',
+    startDate: '',
+    rentalDays: String(rental?.days ?? 1),
+  })
   const [chosenServices, setChosenServices] = useState<ServiceCategory[]>(defaultService ? [defaultService] : [])
 
   const [state, formAction, isPending] = useActionState(submitLead, initialActionState)
+
+  const isRental = Boolean(rental?.items.length)
+  const isThai = locale === 'th'
+  const days = parseRentalDays(draft.rentalDays)
+
+  /**
+   * ค่าเช่าโดยประมาณคิดใหม่ทุกครั้งที่เปลี่ยนจำนวนวัน ด้วยสูตรเดียวกับใบเสนอราคาเบื้องต้น
+   * เดิมฟอร์มเช่าไม่มีช่องวันเลย ทีมขายต้องถามกลับทุกรายว่าจะใช้กี่วัน ก่อนจะคิดราคาได้
+   */
+  const estimate = useMemo(
+    () => (rental?.items.length ? rentalRequestEstimate(rental.items, days) : null),
+    [rental, days],
+  )
+  const money = useMemo(
+    () => new Intl.NumberFormat(isThai ? 'th-TH' : 'en-US', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }),
+    [isThai],
+  )
+
+  // วันนี้ตามเวลาไทย ฝั่งเซิร์ฟเวอร์กับเบราว์เซอร์จึงได้ค่าเดียวกันตอน hydrate
+  const today = bangkokDateString()
+  const returnText = isIsoDate(draft.startDate)
+    ? t('returnOn', {
+        date: new Intl.DateTimeFormat(isThai ? 'th-TH' : 'en-GB', { dateStyle: 'medium', timeZone: 'UTC' }).format(
+          new Date(`${rentalEndDate(draft.startDate, days)}T00:00:00Z`),
+        ),
+      })
+    : undefined
 
   /**
    * แพ็กเกจมาได้สองทาง
@@ -89,12 +146,15 @@ export function LeadForm({
     }
   }, [state])
 
-  const fieldError = (name: keyof typeof draft) => state.fieldErrors?.[name]?.length ? [t('validation.' + name)] : undefined
+  const fieldError = (name: keyof Draft) =>
+    state.fieldErrors?.[name]?.length ? [t('validation.' + name)] : undefined
   const feedback: Record<string, string> = {
     rateLimited: t('rateLimited'),
     invalid: t('invalid'),
     serverError: t('serverError'),
   }
+  const setField = (name: keyof Draft) => (event: { target: { value: string } }) =>
+    setDraft({ ...draft, [name]: event.target.value })
 
   if (state.status === 'success') {
     return (
@@ -103,6 +163,11 @@ export function LeadForm({
         {state.refCode && (
           <p className="tabular mt-2 text-sm font-medium text-success">
             {t('leadSuccessRef', { refCode: state.refCode })}
+          </p>
+        )}
+        {state.receiptSent && draft.email && (
+          <p className="mt-3 text-sm text-muted-foreground text-pretty">
+            {t('leadCopySent', { email: draft.email })}
           </p>
         )}
       </div>
@@ -116,8 +181,8 @@ export function LeadForm({
       <Honeypot />
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="source" value={source} />
-      {equipmentIds.map((id) => (
-        <input key={id} type="hidden" name="equipmentIds" value={id} />
+      {rental?.items.map((item) => (
+        <input key={item.id} type="hidden" name="equipmentIds" value={item.id} />
       ))}
 
       {/*
@@ -154,19 +219,73 @@ export function LeadForm({
         </>
       )}
 
-      {equipmentLabels.length > 0 && (
+      {estimate && (
         <div className="rounded-md border border-border bg-subtle p-4">
           <p className="mb-2 text-sm font-medium">{t('selectedEquipment')}</p>
-          <ul className="flex flex-wrap gap-2">
-            {equipmentLabels.map((label) => (
-              <li
-                key={label}
-                className="rounded-full bg-background px-2.5 py-1 text-xs text-muted-foreground"
-              >
-                {label}
+          <ul className="divide-y divide-border text-sm">
+            {estimate.lines.map((line) => (
+              <li key={line.id} className="flex items-baseline justify-between gap-3 py-2">
+                <span className="min-w-0 text-pretty">{line.label}</span>
+                <span className="tabular shrink-0 text-muted-foreground">
+                  {line.isOnRequest ? t('onRequest') : money.format(line.amount)}
+                </span>
               </li>
             ))}
           </ul>
+          <dl aria-live="polite" className="mt-2 space-y-1 border-t border-border pt-3 text-sm">
+            <div className="flex items-baseline justify-between gap-3 font-medium">
+              <dt>
+                {t('rentalEstimate')} · {t('daysCount', { count: days })}
+              </dt>
+              <dd className="tabular">{money.format(estimate.subtotal)}</dd>
+            </div>
+            {estimate.deposit > 0 && (
+              <div className="flex items-baseline justify-between gap-3 text-muted-foreground">
+                <dt>{t('deposit')}</dt>
+                <dd className="tabular">{money.format(estimate.deposit)}</dd>
+              </div>
+            )}
+          </dl>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground text-pretty">{t('rentalEstimateNote')}</p>
+        </div>
+      )}
+
+      {isRental && (
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field
+            htmlFor={fieldId('startDate')}
+            label={t('startDate')}
+            optionalLabel={t('optional')}
+            hint={returnText}
+            error={fieldError('startDate')}
+          >
+            <Input
+              id={fieldId('startDate')}
+              name="startDate"
+              type="date"
+              min={today}
+              max={addDaysIso(today, MAX_ADVANCE_DAYS)}
+              value={draft.startDate}
+              onChange={setField('startDate')}
+              aria-invalid={Boolean(fieldError('startDate'))}
+            />
+          </Field>
+
+          <Field htmlFor={fieldId('rentalDays')} label={t('rentalDays')} required error={fieldError('rentalDays')}>
+            <Input
+              id={fieldId('rentalDays')}
+              name="rentalDays"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={MAX_RENTAL_DAYS}
+              step={1}
+              required
+              value={draft.rentalDays}
+              onChange={setField('rentalDays')}
+              aria-invalid={Boolean(fieldError('rentalDays'))}
+            />
+          </Field>
         </div>
       )}
 
@@ -176,7 +295,7 @@ export function LeadForm({
             id={fieldId('name')}
             name="name"
             value={draft.name}
-            onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+            onChange={setField('name')}
             required
             minLength={2}
             maxLength={100}
@@ -191,7 +310,7 @@ export function LeadForm({
             id={fieldId('email')}
             name="email"
             value={draft.email}
-            onChange={(event) => setDraft({ ...draft, email: event.target.value })}
+            onChange={setField('email')}
             type="email"
             required
             maxLength={160}
@@ -208,7 +327,7 @@ export function LeadForm({
             id={fieldId('phone')}
             name="phone"
             value={draft.phone}
-            onChange={(event) => setDraft({ ...draft, phone: event.target.value })}
+            onChange={setField('phone')}
             type="tel"
             inputMode="tel"
             autoComplete="tel"
@@ -222,7 +341,7 @@ export function LeadForm({
             id={fieldId('company')}
             name="company"
             value={draft.company}
-            onChange={(event) => setDraft({ ...draft, company: event.target.value })}
+            onChange={setField('company')}
             maxLength={120}
             autoComplete="organization"
             placeholder={t('companyPlaceholder')}
@@ -230,7 +349,8 @@ export function LeadForm({
         </Field>
       </div>
 
-      {showServicePicker && (
+      {/* คำขอเช่าไม่ถามบริการกับงบประมาณ อุปกรณ์และจำนวนวันบอกราคาได้ชัดกว่าช่วงงบอยู่แล้ว */}
+      {showServicePicker && !isRental && (
         <fieldset>
           <legend className="mb-2.5 text-sm font-medium">{t('servicesInterested')}</legend>
           <div className="flex flex-wrap gap-2">
@@ -267,33 +387,43 @@ export function LeadForm({
         </fieldset>
       )}
 
-      <Field htmlFor={fieldId('budgetRange')} label={t('budget')}>
-        <Select
-          id={fieldId('budgetRange')}
-          name="budgetRange"
-          value={budget}
-          onChange={(e) => setBudget(e.target.value)}
-        >
-          <option value="">{t('budgetPlaceholder')}</option>
-          {budgetRanges.map((range) => (
-            <option key={range} value={range}>
-              {tBudget(range)}
-            </option>
-          ))}
-        </Select>
-      </Field>
+      {!isRental && (
+        <Field htmlFor={fieldId('budgetRange')} label={t('budget')}>
+          <Select
+            id={fieldId('budgetRange')}
+            name="budgetRange"
+            value={budget}
+            onChange={(e) => setBudget(e.target.value)}
+          >
+            <option value="">{t('budgetPlaceholder')}</option>
+            {budgetRanges.map((range) => (
+              <option key={range} value={range}>
+                {tBudget(range)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
 
-      <Field htmlFor={fieldId('message')} label={t('message')} hint={t('messageHint')} required error={fieldError('message')}>
+      <Field
+        htmlFor={fieldId('message')}
+        label={isRental ? t('rentalMessage') : t('message')}
+        hint={isRental ? undefined : t('messageHint')}
+        required={!isRental}
+        optionalLabel={isRental ? t('optional') : undefined}
+        error={fieldError('message')}
+      >
         <Textarea
           id={fieldId('message')}
           name="message"
-            value={draft.message}
-            onChange={(event) => setDraft({ ...draft, message: event.target.value })}
-          required
-          minLength={10}
+          value={draft.message}
+          onChange={setField('message')}
+          required={!isRental}
+          minLength={isRental ? undefined : 10}
           maxLength={3000}
-          placeholder={t('messagePlaceholder')}
+          placeholder={isRental ? t('rentalMessagePlaceholder') : t('messagePlaceholder')}
           aria-invalid={Boolean(fieldError('message'))}
+          className={isRental ? 'min-h-24' : undefined}
         />
       </Field>
 

@@ -21,6 +21,10 @@ export type EquipmentCardData = {
   dailyRateLabel: string | null
   weeklyRateLabel: string | null
   depositLabel: string | null
+  /** เรตเป็นตัวเลขสำหรับคำนวณค่าเช่าโดยประมาณในฟอร์มขอใบเสนอราคา */
+  dailyRate: number | null
+  weeklyRate: number | null
+  deposit: number | null
   image: string | null
   gallery: string[]
   quantity: number

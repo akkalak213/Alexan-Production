@@ -11,7 +11,9 @@ import {
   quoteStatusLabels,
   serviceCategoryLabels,
 } from '@/lib/admin-labels'
-import { formatPrice } from '@/lib/format'
+import { bangkokDateString } from '@/lib/bangkok-time'
+import { formatPrice, toNumber } from '@/lib/format'
+import { rentalEndDate, rentalRequestEstimate } from '@/lib/rental-request'
 import { getLeadById } from '@/server/admin-queries'
 
 export const metadata: Metadata = { title: 'รายละเอียดคำขอ' }
@@ -24,6 +26,30 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const dateTime = new Intl.DateTimeFormat('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'medium',
     timeStyle: 'short',
   })
+  const dateOnly = new Intl.DateTimeFormat('th-TH', { timeZone: 'UTC', dateStyle: 'medium' })
+  const showDate = (iso: string) => dateOnly.format(new Date(`${iso}T00:00:00Z`))
+
+  // ลูกค้าเลือกจำนวนวันจากฟอร์มเดียว ทุกรายการจึงเก็บค่าเดียวกัน
+  const rentalDays = lead.items.find((item) => item.days)?.days ?? null
+  const startDate = lead.preferredDate ? bangkokDateString(lead.preferredDate) : null
+  const rentalPeriod = startDate
+    ? `${showDate(startDate)} – ${showDate(rentalEndDate(startDate, rentalDays ?? 1))}`
+    : null
+
+  // คิดจากเรตปัจจุบัน ใช้ประเมินขนาดงานก่อนออกใบเสนอราคา ไม่ใช่ราคาที่ยืนยันกับลูกค้า
+  const estimate = lead.items.length
+    ? rentalRequestEstimate(
+        lead.items.map((item) => ({
+          id: item.id,
+          label: item.labelSnapshot,
+          dailyRate: toNumber(item.equipment?.dailyRate),
+          weeklyRate: toNumber(item.equipment?.weeklyRate),
+          deposit: toNumber(item.equipment?.depositAmount),
+        })),
+        rentalDays ?? 1,
+      )
+    : null
+  const lineById = new Map(estimate?.lines.map((line) => [line.id, line]))
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -77,20 +103,31 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           <section className="rounded-lg border border-border bg-surface p-5">
             <h2 className="mb-3 font-medium">ข้อความจากลูกค้า</h2>
             <p className="whitespace-pre-line rounded-md bg-subtle p-4 text-sm leading-relaxed">
-              {lead.message}
+              {lead.message || <span className="text-muted-foreground">ลูกค้าไม่ได้พิมพ์ข้อความ</span>}
             </p>
           </section>
 
           {lead.items.length > 0 && (
             <section className="rounded-lg border border-border bg-surface p-5">
-              <h2 className="mb-3 font-medium">อุปกรณ์ที่สนใจเช่า</h2>
+              <h2 className="mb-1 font-medium">อุปกรณ์ที่สนใจเช่า</h2>
+              <p className="mb-3 text-xs text-muted-foreground">
+                {rentalPeriod && `ใช้งาน ${rentalPeriod} · `}
+                {rentalDays ? `${rentalDays} วัน` : 'ลูกค้าไม่ได้ระบุจำนวนวัน ยอดด้านล่างคิดที่ 1 วัน'}
+              </p>
               <ul className="space-y-2">
                 {lead.items.map((item) => (
                   <li
                     key={item.id}
                     className="flex items-center justify-between gap-3 rounded-md bg-subtle px-3 py-2 text-sm"
                   >
-                    <span>{item.labelSnapshot}</span>
+                    <span className="min-w-0">
+                      {item.labelSnapshot}
+                      <span className="tabular ml-2 text-xs text-muted-foreground">
+                        {lineById.get(item.id)?.isOnRequest
+                          ? 'ยังไม่ได้ตั้งเรต'
+                          : formatPrice(lineById.get(item.id)?.amount, 'th')}
+                      </span>
+                    </span>
                     {item.equipment ? (
                       // ลิงก์ไปหน้าแก้ไขของชิ้นนั้นตรง ๆ
                       // ของเดิมส่ง ?highlight=<slug> ไปหน้ารายการซึ่งไม่มีโค้ดอ่านค่านั้นเลย
@@ -107,6 +144,20 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                   </li>
                 ))}
               </ul>
+              {estimate && (
+                <dl className="mt-3 space-y-1 border-t border-border pt-3 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">ค่าเช่าตามเรตปัจจุบัน (ก่อน VAT)</dt>
+                    <dd className="tabular font-medium">{formatPrice(estimate.subtotal, 'th')}</dd>
+                  </div>
+                  {estimate.deposit > 0 && (
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-muted-foreground">เงินมัดจำ</dt>
+                      <dd className="tabular">{formatPrice(estimate.deposit, 'th')}</dd>
+                    </div>
+                  )}
+                </dl>
+              )}
             </section>
           )}
 
@@ -169,6 +220,18 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                       </span>
                     ))}
                   </dd>
+                </div>
+              )}
+              {rentalPeriod && (
+                <div>
+                  <dt className="text-xs text-muted-foreground">วันที่ใช้งาน</dt>
+                  <dd className="mt-0.5">{rentalPeriod}</dd>
+                </div>
+              )}
+              {rentalDays && (
+                <div>
+                  <dt className="text-xs text-muted-foreground">จำนวนวัน</dt>
+                  <dd className="mt-0.5">{rentalDays} วัน</dd>
                 </div>
               )}
               {lead.budgetRange && (

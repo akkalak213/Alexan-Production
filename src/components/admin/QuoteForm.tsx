@@ -3,7 +3,6 @@
 import { Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useActionState, useMemo, useState } from 'react'
-import { QuoteStatus } from '@/generated/prisma/enums'
 import { AdminCard } from '@/components/admin/AdminPage'
 import { useActionToast } from '@/components/ui/Toast'
 import {
@@ -13,7 +12,6 @@ import {
 } from '@/components/admin/AdminUI'
 import { buttonClasses } from '@/components/ui/Button'
 import { Field, FormMessage, Input, Select, Textarea } from '@/components/ui/Form'
-import { quoteStatusLabels } from '@/lib/admin-labels'
 import { bahtText } from '@/lib/baht-text'
 import { computeQuoteTotals, lineAmount } from '@/lib/quote-math'
 import { initialAdminState } from '@/server/admin-state'
@@ -46,7 +44,6 @@ export type QuoteFormData = {
   withholdingRate: string
   notes: string
   termsText: string
-  status: QuoteStatus
   items: QuoteLineRow[]
 }
 
@@ -220,7 +217,7 @@ export function QuoteForm({ quote }: { quote: QuoteFormData }) {
               <Field
                 htmlFor="withholdingRate"
                 label="หัก ณ ที่จ่าย (%)"
-                hint="ค่าบริการทั่วไปคิด 3% ใส่ 0 ถ้าไม่หัก"
+                hint="ค่าบริการ 3% · ค่าเช่าอุปกรณ์ 5% · ลูกค้าบุคคลธรรมดาไม่ต้องหัก ใส่ 0"
               >
                 <Input
                   id="withholdingRate"
@@ -268,19 +265,15 @@ export function QuoteForm({ quote }: { quote: QuoteFormData }) {
           </div>
         </AdminCard>
 
-        <AdminCard title="เงื่อนไขและสถานะ">
+        {/*
+          ไม่มีช่องสถานะในฟอร์มนี้แล้ว
+          เดิมเลือก "ส่งแล้ว" แล้วกดบันทึกได้ ทั้งที่ไม่มีอีเมลออกไปถึงลูกค้าเลย
+          สถานะเปลี่ยนจากแผงด้านบนเท่านั้น: ส่งอีเมลจริง หรือบันทึกผลว่าลูกค้าตอบรับ/ปฏิเสธ
+        */}
+        <AdminCard title="เงื่อนไข">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field htmlFor="validUntil" label="ยืนราคาถึงวันที่">
               <Input id="validUntil" name="validUntil" type="date" defaultValue={quote.validUntil} />
-            </Field>
-            <Field htmlFor="status" label="สถานะ">
-              <Select id="status" name="status" defaultValue={quote.status}>
-                {Object.values(QuoteStatus).map((status) => (
-                  <option key={status} value={status}>
-                    {quoteStatusLabels[status]}
-                  </option>
-                ))}
-              </Select>
             </Field>
             <Field htmlFor="notes" label="หมายเหตุ" className="sm:col-span-2">
               <Textarea id="notes" name="notes" defaultValue={quote.notes} className="min-h-20" />

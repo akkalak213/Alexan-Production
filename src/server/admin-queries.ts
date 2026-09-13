@@ -110,6 +110,9 @@ export const getLeads = cache(async (status?: LeadStatus) => {
         services: true,
         budgetRange: true,
         createdAt: true,
+        preferredDate: true,
+        // ชื่ออุปกรณ์ขึ้นเป็นแท็กในรายการ คำขอเช่าไม่มีบริการที่เลือก เดิมจึงไม่มีแท็กอะไรเลย
+        items: { select: { labelSnapshot: true }, take: 4 },
         _count: { select: { items: true, notes: true, quotes: true } },
       },
     }),
@@ -129,7 +132,13 @@ export const getLeadById = cache((id: string) =>
   db.lead.findUnique({
     where: { id },
     include: {
-      items: { include: { equipment: { select: { id: true, slug: true, brand: true, model: true } } } },
+      items: {
+        include: {
+          equipment: {
+            select: { id: true, slug: true, brand: true, model: true, dailyRate: true, weeklyRate: true, depositAmount: true },
+          },
+        },
+      },
       notes: {
         orderBy: { createdAt: 'desc' },
         include: { author: { select: { name: true } } },
@@ -289,7 +298,25 @@ export const getLeadForQuote = cache((id: string) =>
       phone: true,
       company: true,
       locale: true,
-      items: { select: { labelSnapshot: true, quantity: true, days: true } },
+      preferredDate: true,
+      // แพ็กเกจกับเรตค่าเช่าใช้ตั้งราคาตั้งต้นให้ ทีมขายไม่ต้องเปิดอีกแท็บไปลอกตัวเลขมาพิมพ์
+      package: {
+        select: {
+          nameTh: true,
+          nameEn: true,
+          priceFrom: true,
+          priceUnit: true,
+          service: { select: { titleTh: true, titleEn: true } },
+        },
+      },
+      items: {
+        select: {
+          labelSnapshot: true,
+          quantity: true,
+          days: true,
+          equipment: { select: { dailyRate: true, weeklyRate: true, depositAmount: true } },
+        },
+      },
     },
   }),
 )

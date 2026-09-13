@@ -346,7 +346,8 @@
     "directTitle": "Or reach us directly",
     "hoursTitle": "Opening hours",
     "responseNote": "We read everything and reply within one business day. If it is urgent, calling is faster.",
-    "lineIdNote": "LINE ID — copy it to search in the LINE app"
+    "lineIdNote": "LINE ID — copy it to search in the LINE app",
+    "rentalFormTitle": "Request a rental quote"
   },
   "forms": {
     "name": "Name",
@@ -392,8 +393,22 @@
       "email": "Enter a valid email address, up to 160 characters.",
       "phone": "Enter a Thai phone number, such as 0812345678 or +66812345678.",
       "company": "Company name must be 120 characters or fewer.",
-      "message": "Enter 10–3,000 characters about your project."
-    }
+      "message": "Enter 10–3,000 characters about your project.",
+      "startDate": "Choose today or a later date, up to two years ahead.",
+      "rentalDays": "Days must be between 1 and 365."
+    },
+    "startDate": "Start date",
+    "rentalDays": "Days",
+    "daysCount": "{count, plural, one {# day} other {# days}}",
+    "returnOn": "Return on {date}",
+    "rentalEstimate": "Estimated rental",
+    "rentalEstimateNote": "Based on our published rates. Excludes VAT and delivery. We will confirm availability before confirming the price.",
+    "deposit": "Deposit (refunded on return)",
+    "onRequest": "On request",
+    "rentalMessage": "Message for our team",
+    "rentalMessagePlaceholder": "For example your shoot location, whether you need delivery, or questions about the gear",
+    "optional": "Optional",
+    "leadCopySent": "A summary of your request was sent to {email}. If you cannot find it, check your spam folder."
   },
   "budget": {
     "under-50k": "Under 50,000",
