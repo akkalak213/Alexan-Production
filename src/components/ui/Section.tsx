@@ -12,6 +12,11 @@ type SectionProps = {
   tone?: 'default' | 'subtle'
   className?: string
   align?: 'left' | 'center'
+  /**
+   * ระดับหัวเรื่อง — h1 เมื่อ Section นี้คือหัวเรื่องหลักของหน้า (หน้ารวมผลงาน บริการ ฯลฯ)
+   * ค่าเริ่มต้น h2 สำหรับส่วนย่อยในหน้าที่มี h1 อยู่แล้ว หน้าหนึ่งควรมี h1 หนึ่งตัวเสมอ
+   */
+  headingLevel?: 'h1' | 'h2'
 }
 
 export function Section({
@@ -24,6 +29,7 @@ export function Section({
   tone = 'default',
   className,
   align = 'left',
+  headingLevel: Heading = 'h2',
 }: SectionProps) {
   const hasHeader = Boolean(eyebrow || title || subtitle || action)
 
@@ -57,7 +63,7 @@ export function Section({
                 </p>
               )}
               {title && (
-                <h2 className="font-display text-display-md text-balance">{title}</h2>
+                <Heading className="font-display text-display-md text-balance">{title}</Heading>
               )}
               {subtitle && (
                 <p className="mt-4 text-base leading-relaxed text-muted-foreground text-pretty md:text-lg">

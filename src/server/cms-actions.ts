@@ -10,6 +10,7 @@ import type {
   ServiceCategory,
 } from '@/generated/prisma/enums'
 import { db } from '@/lib/db'
+import { specsFromForm } from '@/lib/equipment-specs'
 import type { AdminActionState } from './admin-state'
 import type { CacheTag } from './cache'
 import {
@@ -261,7 +262,7 @@ export async function saveEquipment(
     ([, value]) => value !== null && value < 0,
   )?.[0]
   if (negativeField) {
-    return { status: 'error', message: 'ค่าเช่าและเงินมัดจำต้องไม่ติดลบ', field: negativeField }
+    return { status: 'error', message: 'ค่าเช่าและเงินประกันต้องไม่ติดลบ', field: negativeField }
   }
 
   const nameTh = text(formData, 'nameTh') || `${brand} ${model}`
@@ -275,7 +276,7 @@ export async function saveEquipment(
     nameEn: text(formData, 'nameEn') || `${brand} ${model}`,
     descriptionTh: optionalText(formData, 'descriptionTh'),
     descriptionEn: optionalText(formData, 'descriptionEn'),
-    specs: pairs(formData, 'specs', 'label', 'value'),
+    specs: specsFromForm(formData, 'specs'),
     dailyRate,
     weeklyRate,
     depositAmount,

@@ -3,6 +3,7 @@
 import { FileText, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import type { EquipmentCategory } from '@/generated/prisma/enums'
 import { Link } from '@/i18n/navigation'
 import { Button, buttonClasses } from '@/components/ui/Button'
 import { LeadForm } from '@/components/forms/LeadForm'
@@ -16,7 +17,14 @@ import {
 import { scrollIntoViewSoftly } from '@/lib/scroll'
 import { EquipmentCard, type EquipmentCardData } from './EquipmentCard'
 
-export function RentalCatalog({ items }: { items: EquipmentCardData[] }) {
+type Props = {
+  /** อุปกรณ์ทุกหมวด ไม่ใช่เฉพาะหมวดที่กรองอยู่ — ของที่เลือกไว้จากหมวดอื่นต้องหาเจอด้วย */
+  items: EquipmentCardData[]
+  /** หมวดที่กรองแสดงอยู่ ไม่ระบุ = แสดงทั้งหมด */
+  category?: EquipmentCategory
+}
+
+export function RentalCatalog({ items, category }: Props) {
   const t = useTranslations('rental')
   const tEstimate = useTranslations('estimate')
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -38,6 +46,16 @@ export function RentalCatalog({ items }: { items: EquipmentCardData[] }) {
       selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id],
     )
 
+  const visible = category ? items.filter((item) => item.category === category) : items
+
+  /**
+   * ตะกร้ามาจากอุปกรณ์ทุกหมวด ไม่ใช่รายการที่กรองแสดงอยู่
+   * เดิมหาจากรายการหมวดปัจจุบัน ลูกค้าที่เลือกกล้องแล้วไปเลือกเลนส์ในหมวดเลนส์
+   * จะเห็นว่าเลือกไว้ 1 รายการและส่งคำขอไปแค่เลนส์ ขณะที่ลิงก์ใบประเมินได้ครบทั้งสองชิ้น
+   *
+   * แถบสรุป ฟอร์ม และลิงก์ใบประเมินใช้ชุดนี้ชุดเดียว id ที่ค้างอยู่ในเบราว์เซอร์
+   * แต่อุปกรณ์ถูกซ่อนหรือลบไปแล้วจึงหลุดออกเองทุกเส้นทาง ตัวเลขไม่ขัดกันอีก
+   */
   const selected = items.filter((item) => selectedIds.includes(item.id))
 
   /**
@@ -48,7 +66,7 @@ export function RentalCatalog({ items }: { items: EquipmentCardData[] }) {
     if (isFormOpen) scrollIntoViewSoftly(formRef.current)
   }, [isFormOpen])
 
-  if (items.length === 0) {
+  if (visible.length === 0) {
     return (
       <p className="rounded-lg border border-dashed border-border py-20 text-center text-sm text-muted-foreground">
         {t('empty')}
@@ -59,7 +77,7 @@ export function RentalCatalog({ items }: { items: EquipmentCardData[] }) {
   return (
     <>
       <ul className="reveal-stagger grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((item) => (
+        {visible.map((item) => (
           <li key={item.id}>
             <EquipmentCard
               item={item}
@@ -90,7 +108,7 @@ export function RentalCatalog({ items }: { items: EquipmentCardData[] }) {
             <Link
               href={{
                 pathname: '/rental/estimate',
-                query: { items: selectedIds.join(','), days: 1 },
+                query: { items: selected.map((item) => item.id).join(','), days: 1 },
               }}
               className={buttonClasses('outline', 'sm')}
             >

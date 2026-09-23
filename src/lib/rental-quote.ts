@@ -95,7 +95,7 @@ export function rentalQuoteLines(
   })
 }
 
-/** หมายเหตุบนใบเสนอราคา: ช่วงวันที่ใช้งานและเงินมัดจำ ซึ่งไม่ได้อยู่ในยอดชำระ */
+/** หมายเหตุบนใบเสนอราคา: ช่วงวันที่ใช้งานและเงินประกันอุปกรณ์ ซึ่งไม่ได้อยู่ในยอดชำระ */
 export function rentalQuoteNotes({
   locale = 'th',
   startDate,
@@ -123,8 +123,8 @@ export function rentalQuoteNotes({
   if (deposit > 0) {
     lines.push(
       isEnglish
-        ? `Deposit ฿${money.format(deposit)} is paid at pickup and refunded in full when all gear is returned in its original condition. It is not included in the total above.`
-        : `เงินมัดจำ ฿${money.format(deposit)} ชำระวันรับอุปกรณ์ และคืนเต็มจำนวนเมื่อส่งคืนครบและอยู่ในสภาพเดิม ไม่รวมอยู่ในยอดชำระข้างต้น`,
+        ? `Security deposit ฿${money.format(deposit)} is paid at pickup and refunded in full when all gear is returned in its original condition. It is not included in the total above.`
+        : `เงินประกันอุปกรณ์ ฿${money.format(deposit)} ชำระวันรับอุปกรณ์ และคืนเต็มจำนวนเมื่อส่งคืนครบและอยู่ในสภาพเดิม ไม่รวมอยู่ในยอดชำระข้างต้น`,
     )
   }
 
@@ -134,7 +134,8 @@ export function rentalQuoteNotes({
 /**
  * เงื่อนไขของการเช่า
  *
- * ประกอบจากข้อความที่ประกาศบนหน้าเช่าอุปกรณ์อยู่แล้ว (มัดจำ บัตรประชาชน ค่าจัดส่ง)
+ * ประกอบจากข้อความที่ประกาศบนหน้าเช่าอุปกรณ์อยู่แล้ว (เงินประกัน บัตรประชาชน ค่าจัดส่ง)
+ * ใบเสนอราคาเบื้องต้นที่ลูกค้ากดเองใช้ชุดเดียวกัน ลูกค้าจึงเห็นเงื่อนไขตรงกันทั้งสองใบ
  * ไม่ได้แต่งเงื่อนไขใหม่ขึ้นมาเอง ข้อที่ต้องการเพิ่มให้แก้ในฟอร์มก่อนบันทึก
  */
 export function rentalQuoteTerms(locale: string, validDays: number): string {
@@ -142,14 +143,14 @@ export function rentalQuoteTerms(locale: string, validDays: number): string {
     locale === 'en'
       ? [
           `This quotation is valid for ${validDays} days from the issue date.`,
-          'A deposit and photo ID are required at pickup.',
-          'The deposit is held separately from the rental fee and refunded in full when all gear is returned in its original condition.',
+          'A refundable security deposit and photo ID are required at pickup.',
+          'The security deposit is not a booking fee or prepayment. It is held separately from the rental fee and refunded in full when all gear is returned in its original condition.',
           'Prices exclude delivery.',
         ]
       : [
           `ราคานี้ยืนยันภายใน ${validDays} วันนับจากวันที่ออกใบเสนอราคา`,
-          'ผู้เช่าต้องวางเงินมัดจำและแสดงบัตรประชาชนในวันรับอุปกรณ์',
-          'เงินมัดจำเก็บแยกจากค่าเช่า และคืนเต็มจำนวนเมื่อส่งอุปกรณ์คืนครบและอยู่ในสภาพเดิม',
+          'ผู้เช่าต้องวางเงินประกันอุปกรณ์และแสดงบัตรประชาชนในวันรับอุปกรณ์',
+          'เงินประกันอุปกรณ์เก็บแยกจากค่าเช่า ไม่ใช่เงินจองหรือค่าเช่าล่วงหน้า และคืนเต็มจำนวนเมื่อส่งอุปกรณ์คืนครบและอยู่ในสภาพเดิม',
           'ราคายังไม่รวมค่าจัดส่ง',
         ]
   ).join('\n')

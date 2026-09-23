@@ -9,6 +9,7 @@ import { PrintButton } from '@/components/ui/PrintButton'
 import { bahtText } from '@/lib/baht-text'
 import { formatPrice, toNumber } from '@/lib/format'
 import { rentalEstimateTotals, rentalLineTotal } from '@/lib/rental-pricing'
+import { rentalQuoteTerms } from '@/lib/rental-quote'
 import { pageMetadata } from '@/lib/seo'
 import { getQuoteDefaults, getSiteSettings } from '@/lib/settings'
 import { getEquipmentByIds } from '@/server/queries'
@@ -127,7 +128,12 @@ export default async function RentalEstimatePage({ params, searchParams }: Param
     maximumFractionDigits: 2,
   })
 
-  const terms = (isThai ? quoteDefaults.termsTh : quoteDefaults.termsEn)
+  /**
+   * เงื่อนไขของการเช่า ชุดเดียวกับที่ใบเสนอราคาค่าเช่าตัวจริงตั้งต้นให้
+   * ไม่ใช่ termsTh/termsEn ในหน้าตั้งค่า ซึ่งเป็นเงื่อนไขงานบริการ (มัดจำ 50% ก่อนเริ่มงาน
+   * ชำระส่วนที่เหลือเมื่อส่งมอบงาน ค่าเดินทาง) — ผู้เช่าอ่านแล้วไม่รู้ว่าต้องจ่ายค่าเช่าหรือเงินประกันอย่างไร
+   */
+  const terms = rentalQuoteTerms(locale, quoteDefaults.defaultValidDays)
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean)
@@ -182,7 +188,13 @@ export default async function RentalEstimatePage({ params, searchParams }: Param
             <label htmlFor="days" className="sr-only">
               {t('rentalDays')}
             </label>
+            {/*
+              key ตามจำนวนวันในเอกสาร — กดปุ่มลัดแล้วช่องนี้ต้องเปลี่ยนตาม
+              defaultValue ใช้แค่ตอนสร้างช่อง ถ้าลูกค้าพิมพ์ 4 แล้วกดปุ่ม 7 ช่องจะค้าง 4
+              แล้วกด "คำนวณใหม่" ก็พาเอกสารย้อนกลับไปเป็น 4 วัน สร้างช่องใหม่ทุกครั้งที่ค่าเปลี่ยนจึงตรงกันเสมอ
+            */}
             <input
+              key={days}
               id="days"
               name="days"
               type="number"
@@ -201,19 +213,25 @@ export default async function RentalEstimatePage({ params, searchParams }: Param
         </div>
       </div>
 
-      {/* กระดาษ A4 — หน่วยเป็นมิลลิเมตรและพอยต์ ให้พิมพ์ออกมาตรงกับที่เห็นบนจอ */}
-      <article className="mx-auto w-[210mm] max-w-full bg-white p-[15mm] text-[10pt] leading-relaxed text-black shadow-lift print:w-auto print:p-0 print:shadow-none">
-        <header className="flex items-start justify-between gap-8 border-b-2 border-black pb-5">
+      {/*
+        กระดาษ A4 — หน่วยเป็นมิลลิเมตรและพอยต์ ให้พิมพ์ออกมาตรงกับที่เห็นบนจอ
+
+        จอแคบกว่ากระดาษ (มือถือ) ลดขอบกระดาษ เรียงหัวเอกสารลงเป็นแถว และย้ายเรตเข้าไปใต้ชื่อรายการ
+        เดิมใช้ขอบ 15mm กับหัวเอกสารสองฝั่งที่ห้ามหดตลอด บนจอ 390px ชื่อเอกสารกับวันที่จึงล้นขอบขวา
+        ตอนพิมพ์กระดาษกว้างพอสำหรับ sm: อยู่แล้ว และกำกับ print: ไว้ซ้ำให้แน่ใจว่าได้รูปแบบ A4 เสมอ
+      */}
+      <article className="mx-auto w-[210mm] max-w-full bg-white p-5 text-[10pt] leading-relaxed text-black shadow-lift sm:p-[15mm] print:w-auto print:p-0 print:shadow-none">
+        <header className="flex flex-col gap-5 border-b-2 border-black pb-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8 print:flex-row print:items-start print:justify-between print:gap-8">
           <div className="flex gap-4">
             <Image
               src="/logo.png"
               alt=""
               width={512}
               height={512}
-              className="h-[20mm] w-[20mm] shrink-0 [print-color-adjust:exact]"
+              className="h-14 w-14 shrink-0 [print-color-adjust:exact] sm:h-[20mm] sm:w-[20mm] print:h-[20mm] print:w-[20mm]"
               unoptimized
             />
-            <div>
+            <div className="min-w-0">
               <p className="text-[15pt] font-bold leading-tight">
                 {(isThai ? company.legalNameTh || company.nameTh : company.nameEn) ||
                   'Alexan Production'}
@@ -227,9 +245,10 @@ export default async function RentalEstimatePage({ params, searchParams }: Param
             </div>
           </div>
 
-          <div className="shrink-0 text-right">
-            <p className="text-[15pt] font-bold tracking-wide">{t('documentTitle')}</p>
-            <table className="ml-auto mt-2 text-[9pt]">
+          <div className="sm:shrink-0 sm:text-right print:shrink-0 print:text-right">
+            {/* หัวเรื่องหลักของหน้า — หน้านี้ไม่มี h1 อื่น */}
+            <h1 className="text-[15pt] font-bold leading-tight tracking-wide">{t('documentTitle')}</h1>
+            <table className="mt-2 text-[9pt] sm:ml-auto print:ml-auto">
               <tbody>
                 <tr>
                   <td className="pr-3 text-neutral-600">{t('issueDate')}</td>
@@ -264,43 +283,53 @@ export default async function RentalEstimatePage({ params, searchParams }: Param
         <table className="mt-6 w-full border-collapse text-[9.5pt]">
           <thead>
             <tr className="border-y border-black bg-neutral-100 print:bg-neutral-100">
-              <th className="w-[10mm] py-2 pl-2 text-left font-semibold">#</th>
+              <th className="w-8 py-2 pl-2 text-left font-semibold sm:w-[10mm] print:w-[10mm]">#</th>
               <th className="py-2 text-left font-semibold">{t('item')}</th>
-              <th className="w-[38mm] py-2 text-right font-semibold">{t('rate')}</th>
-              <th className="w-[32mm] py-2 pr-2 text-right font-semibold">{t('amount')}</th>
+              <th className="hidden w-[38mm] py-2 text-right font-semibold sm:table-cell print:table-cell">
+                {t('rate')}
+              </th>
+              <th className="py-2 pr-2 text-right font-semibold sm:w-[32mm] print:w-[32mm]">{t('amount')}</th>
             </tr>
           </thead>
           <tbody>
-            {lines.map((line, index) => (
-              <tr key={line.id} className="border-b border-neutral-300 align-top">
-                <td className="py-2.5 pl-2 tabular-nums">{index + 1}</td>
-                <td className="py-2.5 pr-4">
-                  <span className="font-medium">{line.name}</span>
-                  {line.subtitle && line.subtitle !== line.name && (
-                    <span className="block text-[8.5pt] text-neutral-600">{line.subtitle}</span>
+            {lines.map((line, index) => {
+              const rate = line.dailyLabel ? (
+                <>
+                  <span className="block">
+                    {line.dailyLabel} {t('perDay')}
+                  </span>
+                  {line.weeks > 0 && line.weeklyLabel && (
+                    <span className="block">
+                      {line.weeklyLabel} {t('perWeek')}
+                    </span>
                   )}
-                </td>
-                <td className="py-2.5 text-right text-[8.5pt] tabular-nums text-neutral-600">
-                  {line.dailyLabel ? (
-                    <>
-                      <span className="block">
-                        {line.dailyLabel} {t('perDay')}
-                      </span>
-                      {line.weeks > 0 && line.weeklyLabel && (
-                        <span className="block">
-                          {line.weeklyLabel} {t('perWeek')}
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    t('onRequest')
-                  )}
-                </td>
-                <td className="py-2.5 pr-2 text-right tabular-nums">
-                  {line.isOnRequest ? t('onRequest') : money.format(line.amount)}
-                </td>
-              </tr>
-            ))}
+                </>
+              ) : (
+                t('onRequest')
+              )
+
+              return (
+                <tr key={line.id} className="border-b border-neutral-300 align-top">
+                  <td className="py-2.5 pl-2 tabular-nums">{index + 1}</td>
+                  <td className="py-2.5 pr-4">
+                    <span className="font-medium">{line.name}</span>
+                    {line.subtitle && line.subtitle !== line.name && (
+                      <span className="block text-[8.5pt] text-neutral-600">{line.subtitle}</span>
+                    )}
+                    {/* จอแคบไม่มีที่ให้คอลัมน์เรต ย้ายมาไว้ใต้ชื่อแทน ข้อมูลยังครบ */}
+                    <span className="mt-1 block text-[8.5pt] tabular-nums text-neutral-600 sm:hidden print:hidden">
+                      {rate}
+                    </span>
+                  </td>
+                  <td className="hidden py-2.5 text-right text-[8.5pt] tabular-nums text-neutral-600 sm:table-cell print:table-cell">
+                    {rate}
+                  </td>
+                  <td className="whitespace-nowrap py-2.5 pr-2 text-right tabular-nums">
+                    {line.isOnRequest ? t('onRequest') : money.format(line.amount)}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
 
@@ -309,7 +338,7 @@ export default async function RentalEstimatePage({ params, searchParams }: Param
         )}
 
         <div className="mt-5 flex justify-end">
-          <table className="w-[85mm] text-[9.5pt]">
+          <table className="w-full text-[9.5pt] sm:w-[85mm] print:w-[85mm]">
             <tbody className="tabular-nums">
               <tr>
                 <td className="py-1 text-neutral-600">{t('subtotal')}</td>

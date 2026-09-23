@@ -9,7 +9,7 @@ import { useActionToast } from '@/components/ui/Toast'
 import {
   BilingualTabs,
   ConfirmSubmitButton,
-  PairInput,
+  SpecInput,
   SubmitButton,
   VersionField,
 } from '@/components/admin/AdminUI'
@@ -18,6 +18,7 @@ import { RateHint } from '@/components/admin/RateHint'
 import { buttonClasses } from '@/components/ui/Button'
 import { Field, FormMessage, Input, Select, Textarea } from '@/components/ui/Form'
 import { equipmentCategoryLabels, equipmentStatusLabels } from '@/lib/admin-labels'
+import type { SpecRow } from '@/lib/equipment-specs'
 import { initialAdminState } from '@/server/admin-state'
 import { deleteEquipment, saveEquipment } from '@/server/cms-actions'
 
@@ -33,7 +34,7 @@ export type EquipmentFormData = {
   nameEn: string
   descriptionTh: string
   descriptionEn: string
-  specs: { key: string; value: string }[]
+  specs: SpecRow[]
   dailyRate: string
   weeklyRate: string
   depositAmount: string
@@ -136,7 +137,7 @@ export function EquipmentForm({ item }: { item: EquipmentFormData }) {
             <Field htmlFor="weeklyRate" label="ค่าเช่าต่อสัปดาห์ (บาท)">
               <Input id="weeklyRate" name="weeklyRate" inputMode="numeric" defaultValue={item.weeklyRate} />
             </Field>
-            <Field htmlFor="depositAmount" label="เงินมัดจำ (บาท)">
+            <Field htmlFor="depositAmount" label="เงินประกันอุปกรณ์ (บาท)">
               <Input
                 id="depositAmount"
                 name="depositAmount"
@@ -183,14 +184,7 @@ export function EquipmentForm({ item }: { item: EquipmentFormData }) {
 
         <AdminCard title="สเปกและรูปภาพ">
           <div className="space-y-5">
-            <PairInput
-              name="specs"
-              label="สเปก"
-              initial={item.specs}
-              keyPlaceholder="หัวข้อ เช่น เซนเซอร์"
-              valuePlaceholder="ค่า เช่น Full-frame 10.2MP"
-              addLabel="เพิ่มสเปก"
-            />
+            <SpecInput name="specs" initial={item.specs} />
             <ImageField
               name="image"
               label="รูปหลัก"

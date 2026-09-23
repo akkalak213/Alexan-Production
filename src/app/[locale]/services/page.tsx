@@ -74,7 +74,7 @@ export default async function ServicesPage({ params }: { params: Promise<{ local
           { name: tNav('services'), path: localizedPath(locale, '/services') },
         ])}
       />
-      <Section eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')}>
+      <Section headingLevel="h1" eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')}>
         {services.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border py-16 text-center text-sm text-muted-foreground">
             {tc('empty')}

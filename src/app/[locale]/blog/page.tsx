@@ -74,7 +74,7 @@ export default async function BlogPage({ params }: { params: Promise<{ locale: L
         ])}
       />
 
-    <Section eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')}>
+    <Section headingLevel="h1" eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')}>
       {posts.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border py-20 text-center text-sm text-muted-foreground">
           {t('empty')}

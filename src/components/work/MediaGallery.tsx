@@ -25,16 +25,13 @@ type Props = {
 export function MediaGallery({ items, layout = 'masonry' }: Props) {
   const t = useTranslations('work')
   const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const dialogRef = useRef<HTMLDialogElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
 
   const isOpen = openIndex !== null
 
-  const close = useCallback(() => {
-    setOpenIndex(null)
-    // คืนโฟกัสให้ภาพที่ผู้ใช้กดเข้ามา ไม่ให้โฟกัสเด้งไปต้นหน้า
-    triggerRef.current?.focus()
-  }, [])
+  const close = useCallback(() => setOpenIndex(null), [])
 
   const step = useCallback(
     (direction: 1 | -1) => {
@@ -46,24 +43,37 @@ export function MediaGallery({ items, layout = 'masonry' }: Props) {
     [items.length],
   )
 
+  /**
+   * กล่องภาพเป็น <dialog> ที่เปิดด้วย showModal() ไม่ใช่ div ที่วางทับหน้า
+   *
+   * div ธรรมดาปล่อยให้ Tab เดินออกไปโดนลิงก์ของหน้าด้านหลังได้ทั้งที่กล่องภาพยังบังอยู่
+   * showModal() ทำให้ทุกอย่างนอกกล่องเป็น inert ให้เอง โฟกัสจึงวนอยู่ในกล่อง
+   * และ screen reader อ่านเฉพาะกล่อง ส่วน Escape เบราว์เซอร์ปิดให้ แล้วแจ้งกลับทาง onClose
+   */
   useEffect(() => {
-    if (!isOpen) return
+    const dialog = dialogRef.current
+    if (!isOpen || !dialog) return
+
+    // ภาพที่ผู้ใช้กดเข้ามา เก็บไว้คืนโฟกัสตอนปิด ไม่ให้โฟกัสเด้งไปต้นหน้า
+    const trigger = triggerRef.current
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close()
       if (event.key === 'ArrowRight') step(1)
       if (event.key === 'ArrowLeft') step(-1)
     }
 
+    if (!dialog.open) dialog.showModal()
+    closeButtonRef.current?.focus()
     document.body.style.overflow = 'hidden'
     window.addEventListener('keydown', onKeyDown)
-    closeButtonRef.current?.focus()
 
     return () => {
       document.body.style.overflow = ''
       window.removeEventListener('keydown', onKeyDown)
+      if (dialog.open) dialog.close()
+      trigger?.focus()
     }
-  }, [isOpen, close, step])
+  }, [isOpen, step])
 
   if (items.length === 0) return null
 
@@ -111,70 +121,76 @@ export function MediaGallery({ items, layout = 'masonry' }: Props) {
         ))}
       </ul>
 
-      {active && position && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={t('imagePosition', position)}
-          className="fixed inset-0 z-[70] flex flex-col bg-black/95 backdrop-blur-sm"
-          onClick={close}
-        >
-          <div className="flex items-center justify-between p-4">
-            <p className="tabular text-sm text-white/60">{t('imagePosition', position)}</p>
-            <button
-              ref={closeButtonRef}
-              type="button"
-              onClick={close}
-              aria-label={t('closeImage')}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-md text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+      {/*
+        อยู่ในหน้าตลอดแต่เบราว์เซอร์ซ่อนไว้จนกว่าจะ showModal()
+        ห้ามใส่ display (flex) ตรง ๆ — จะทับกฎที่ซ่อน dialog ตอนปิด ต้องใช้ open:flex
+      */}
+      <dialog
+        ref={dialogRef}
+        aria-label={position ? t('imagePosition', position) : undefined}
+        onClose={close}
+        onClick={close}
+        className="fixed inset-0 m-0 h-full max-h-none w-full max-w-none overflow-hidden border-0 bg-black/95 p-0 backdrop-blur-sm open:flex open:flex-col backdrop:bg-transparent"
+      >
+        {active && position && (
+          <>
+            <div className="flex items-center justify-between p-4">
+              <p className="tabular text-sm text-white/60">{t('imagePosition', position)}</p>
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={close}
+                aria-label={t('closeImage')}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-md text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <X size={22} strokeWidth={1.75} />
+              </button>
+            </div>
+
+            <div
+              className="relative flex flex-1 items-center justify-center px-4 pb-4"
+              // คลิกที่ตัวภาพไม่ควรปิด — ปิดเฉพาะเมื่อคลิกพื้นหลัง
+              onClick={(event) => event.stopPropagation()}
             >
-              <X size={22} strokeWidth={1.75} />
-            </button>
-          </div>
+              {items.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => step(-1)}
+                  aria-label={t('previousImage')}
+                  className="absolute left-2 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white/80 transition-colors hover:bg-black/70 hover:text-white sm:left-6"
+                >
+                  <ChevronLeft size={24} strokeWidth={1.75} />
+                </button>
+              )}
 
-          <div
-            className="relative flex flex-1 items-center justify-center px-4 pb-4"
-            // คลิกที่ตัวภาพไม่ควรปิด — ปิดเฉพาะเมื่อคลิกพื้นหลัง
-            onClick={(event) => event.stopPropagation()}
-          >
-            {items.length > 1 && (
-              <button
-                type="button"
-                onClick={() => step(-1)}
-                aria-label={t('previousImage')}
-                className="absolute left-2 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white/80 transition-colors hover:bg-black/70 hover:text-white sm:left-6"
-              >
-                <ChevronLeft size={24} strokeWidth={1.75} />
-              </button>
+              <Image
+                key={active.id}
+                src={active.url}
+                alt={active.alt ?? ''}
+                width={active.width ?? 1600}
+                height={active.height ?? 1100}
+                sizes="100vw"
+                className="max-h-[80dvh] w-auto max-w-full object-contain"
+              />
+
+              {items.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => step(1)}
+                  aria-label={t('nextImage')}
+                  className="absolute right-2 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white/80 transition-colors hover:bg-black/70 hover:text-white sm:right-6"
+                >
+                  <ChevronRight size={24} strokeWidth={1.75} />
+                </button>
+              )}
+            </div>
+
+            {active.caption && (
+              <p className="px-6 pb-6 text-center text-sm text-white/70">{active.caption}</p>
             )}
-
-            <Image
-              key={active.id}
-              src={active.url}
-              alt={active.alt ?? ''}
-              width={active.width ?? 1600}
-              height={active.height ?? 1100}
-              sizes="100vw"
-              className="max-h-[80dvh] w-auto max-w-full object-contain"
-            />
-
-            {items.length > 1 && (
-              <button
-                type="button"
-                onClick={() => step(1)}
-                aria-label={t('nextImage')}
-                className="absolute right-2 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white/80 transition-colors hover:bg-black/70 hover:text-white sm:right-6"
-              >
-                <ChevronRight size={24} strokeWidth={1.75} />
-              </button>
-            )}
-          </div>
-
-          {active.caption && (
-            <p className="px-6 pb-6 text-center text-sm text-white/70">{active.caption}</p>
-          )}
-        </div>
-      )}
+          </>
+        )}
+      </dialog>
     </>
   )
 }

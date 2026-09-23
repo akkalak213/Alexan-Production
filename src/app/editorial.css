@@ -397,6 +397,7 @@
 
 /* ───────────── การเคลื่อนไหว ───────────── */
 @keyframes home-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes home-rise-visible { from { transform: translateY(18px); } to { transform: none; } }
 @keyframes home-enter { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
 @keyframes scene-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
 @keyframes case-swap { from { opacity: 0; } to { opacity: 1; } }
@@ -414,6 +415,13 @@
   .hero-inner > :nth-child(3) { animation-delay: .16s; }
   .hero-inner > :nth-child(4) { animation-delay: .24s; }
   .hero-inner > :nth-child(5) { animation-delay: .32s; }
+  /*
+   * หัวเรื่องหลักเป็น LCP ของหน้าแรก — เลื่อนขึ้นตามจังหวะเดิมแต่ไม่จางเข้า
+   * ข้อความที่ยังโปร่งใสยังไม่นับว่าแสดงผลสำหรับ LCP การจางเข้าพร้อม delay จึงดัน LCP ออกไป
+   * (PageSpeed มือถือ 23 ก.ย. 2026: LCP 4.1 วินาที ชี้ที่ h1#home-title)
+   * เลื่อนด้วย transform อย่างเดียว ข้อความขึ้นจอตั้งแต่เฟรมแรก
+   */
+  .hero-inner > .hero-title { animation-name: home-rise-visible; }
   .home-hero .studio-stage { animation: scene-in 1.4s .35s var(--editorial-ease) backwards; }
   .case-screen img { animation: case-swap .45s var(--editorial-ease); }
 

@@ -249,21 +249,6 @@ export const getRelatedEquipment = cache(
   ),
 )
 
-export const getEquipmentCountsByCategory = cache(
-  cachedQuery('equipment:counts', ['equipment'], () =>
-    safe('equipment-counts', async () => {
-      const rows = await db.equipment.groupBy({
-        by: ['category'],
-        where: { isActive: true },
-        _count: { _all: true },
-      })
-      return Object.fromEntries(rows.map((r) => [r.category, r._count._all])) as Partial<
-        Record<EquipmentCategory, number>
-      >
-    }),
-  ),
-)
-
 // ─────────────────────────── รีวิว ───────────────────────────
 
 export const getApprovedReviews = cache(

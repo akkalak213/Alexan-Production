@@ -10,6 +10,7 @@ import { LeadForm } from '@/components/forms/LeadForm'
 import { Badge } from '@/components/ui/Badge'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { buttonClasses } from '@/components/ui/Button'
+import { localizeSpecs } from '@/lib/equipment-specs'
 import { equipmentBrand, equipmentName, formatPrice, toNumber } from '@/lib/format'
 import { pageMetadata } from '@/lib/seo'
 import { breadcrumbSchema, equipmentProductSchema } from '@/lib/structured-data'
@@ -27,16 +28,6 @@ import { getEquipmentBySlug, getRelatedEquipment } from '@/server/queries'
  * ตอน build บน Railway ยังต่อฐานข้อมูลไม่ได้
  */
 export const dynamic = 'force-dynamic'
-
-type Spec = { label: string; value: string }
-
-function asSpecs(value: unknown): Spec[] {
-  if (!Array.isArray(value)) return []
-  return value.filter(
-    (item): item is Spec =>
-      typeof item === 'object' && item !== null && 'label' in item && 'value' in item,
-  )
-}
 
 export async function generateMetadata({
   params,
@@ -91,7 +82,8 @@ export default async function EquipmentDetailPage({
   const brand = equipmentBrand(item.brand)
   const localName = isThai ? item.nameTh : item.nameEn
   const description = isThai ? item.descriptionTh : item.descriptionEn
-  const specs = asSpecs(item.specs)
+  // ตามภาษาของหน้า — หน้าอังกฤษเดิมแสดงหัวข้อและค่าภาษาไทยปนอยู่
+  const specs = localizeSpecs(item.specs, locale)
   const isAvailable = item.status === 'AVAILABLE'
 
   const images = [item.image, ...item.gallery].filter((url): url is string => Boolean(url))

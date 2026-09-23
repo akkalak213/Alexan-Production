@@ -8,9 +8,10 @@ import { pageMetadata } from '@/lib/seo'
 import type { EquipmentCardData } from '@/components/rental/EquipmentCard'
 import { RentalCatalog } from '@/components/rental/RentalCatalog'
 import { Section } from '@/components/ui/Section'
+import { localizeSpecs } from '@/lib/equipment-specs'
 import { equipmentName, formatPrice, toNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { getEquipment, getEquipmentCountsByCategory } from '@/server/queries'
+import { getEquipment } from '@/server/queries'
 import { JsonLd } from '@/components/JsonLd'
 import {
   breadcrumbSchema,
@@ -22,16 +23,6 @@ const categories = Object.values(EquipmentCategory)
 
 function parseCategory(value: string | undefined): EquipmentCategory | undefined {
   return categories.find((c) => c === value)
-}
-
-type Spec = { label: string; value: string }
-
-function asSpecs(value: unknown): Spec[] {
-  if (!Array.isArray(value)) return []
-  return value.filter(
-    (item): item is Spec =>
-      typeof item === 'object' && item !== null && 'label' in item && 'value' in item,
-  )
 }
 
 export async function generateMetadata({
@@ -62,16 +53,22 @@ export default async function RentalPage({
 
   const active = parseCategory(category)
 
-  const [t, tCat, tNav, equipment, counts] = await Promise.all([
+  /**
+   * ดึงอุปกรณ์ทุกหมวดเสมอ แล้วให้แคตตาล็อกกรองเฉพาะที่แสดง
+   * ของที่ลูกค้าเลือกไว้จากหมวดอื่นต้องมีรายละเอียดและเรตอยู่ในหน้า ไม่งั้นหลุดจากฟอร์มขอราคา
+   * อุปกรณ์มีแค่หลักสิบชิ้น ส่งทั้งหมดไปถูกกว่ายิงคำสั่งแยกตามหมวด และจำนวนต่อหมวดนับจากชุดเดียวกันได้เลย
+   */
+  const [t, tCat, tNav, equipment] = await Promise.all([
     getTranslations('rental'),
     getTranslations('equipmentCategory'),
     getTranslations('nav'),
-    getEquipment(active),
-    getEquipmentCountsByCategory(),
+    getEquipment(),
   ])
 
   const isThai = locale === 'th'
-  const total = Object.values(counts).reduce((sum, n) => sum + n, 0)
+  const counts: Partial<Record<EquipmentCategory, number>> = {}
+  for (const item of equipment) counts[item.category] = (counts[item.category] ?? 0) + 1
+  const total = equipment.length
 
   // แปลง Decimal เป็นข้อความสกุลเงินตั้งแต่ฝั่งเซิร์ฟเวอร์ — client component รับได้เฉพาะค่าที่ serialize ได้
   const items: EquipmentCardData[] = equipment.map((item) => ({
@@ -82,7 +79,7 @@ export default async function RentalPage({
     model: item.model,
     name: isThai ? item.nameTh : item.nameEn,
     description: isThai ? item.descriptionTh : item.descriptionEn,
-    specs: asSpecs(item.specs),
+    specs: localizeSpecs(item.specs, locale),
     dailyRateLabel: formatPrice(item.dailyRate, locale),
     weeklyRateLabel: formatPrice(item.weeklyRate, locale),
     depositLabel: formatPrice(item.depositAmount, locale),
@@ -160,7 +157,7 @@ export default async function RentalPage({
         </>
       )}
 
-    <Section eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')}>
+    <Section headingLevel="h1" eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')}>
       <nav aria-label={t('filterLabel')} className="mb-8">
         <ul className="flex flex-wrap gap-2">
           <li>
@@ -210,7 +207,7 @@ export default async function RentalPage({
         </span>
       </p>
 
-      <RentalCatalog items={items} />
+      <RentalCatalog items={items} category={active} />
     </Section>
     </>
   )

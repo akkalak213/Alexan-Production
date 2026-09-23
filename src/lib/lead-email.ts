@@ -101,7 +101,7 @@ function rentalTable(rental: LeadEmailRental, isEnglish: boolean): string {
       <tbody>${lines}</tbody>
       <tbody>
         ${total(isEnglish ? 'Estimated rental (before VAT)' : 'ค่าเช่าตามเรต (ก่อน VAT)', moneyText(rental.subtotal, isEnglish), true)}
-        ${rental.deposit > 0 ? total(isEnglish ? 'Deposit (refunded on return)' : 'เงินมัดจำ (คืนเมื่อส่งของครบ)', moneyText(rental.deposit, isEnglish)) : ''}
+        ${rental.deposit > 0 ? total(isEnglish ? 'Security deposit (refunded on return)' : 'เงินประกันอุปกรณ์ (ได้คืนเมื่อคืนอุปกรณ์ครบ)', moneyText(rental.deposit, isEnglish)) : ''}
       </tbody>
     </table>`
 }

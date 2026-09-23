@@ -97,7 +97,7 @@ export default async function ReviewsPage({ params }: { params: Promise<{ locale
         ])}
       />
 
-      <Section eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')}>
+      <Section headingLevel="h1" eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')}>
         {stats.total > 0 && (
           <div className="mb-14 grid gap-6 md:grid-cols-3">
             <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-surface p-8">

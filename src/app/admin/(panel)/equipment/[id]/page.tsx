@@ -2,9 +2,10 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { AdminPageHeader } from '@/components/admin/AdminPage'
 import { EquipmentForm } from '@/components/admin/EquipmentForm'
+import { readSpecRows } from '@/lib/equipment-specs'
 import { toNumber } from '@/lib/format'
 import { getAdminEquipmentItem } from '@/server/admin-queries'
-import { toPairRows, versionOf } from '@/server/cms-helpers'
+import { versionOf } from '@/server/cms-helpers'
 
 export const metadata: Metadata = { title: 'แก้ไขอุปกรณ์' }
 
@@ -34,7 +35,7 @@ export default async function EditEquipmentPage({ params }: { params: Promise<{ 
           nameEn: item.nameEn,
           descriptionTh: item.descriptionTh ?? '',
           descriptionEn: item.descriptionEn ?? '',
-          specs: toPairRows(item.specs, 'label', 'value'),
+          specs: readSpecRows(item.specs),
           dailyRate: decimalToInput(item.dailyRate),
           weeklyRate: decimalToInput(item.weeklyRate),
           depositAmount: decimalToInput(item.depositAmount),

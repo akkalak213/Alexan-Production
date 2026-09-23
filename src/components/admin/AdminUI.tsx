@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { flushSync, useFormStatus } from 'react-dom'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Form'
+import { glossaryLabel, type SpecRow } from '@/lib/equipment-specs'
 import { cn } from '@/lib/utils'
 import type { AdminActionState } from '@/server/admin-state'
 import { REVEAL_EVENT, useAdminFormPending } from './admin-form-context'
@@ -354,6 +355,75 @@ export function PairInput({
       >
         <Plus size={15} strokeWidth={2} />
         {addLabel}
+      </button>
+    </fieldset>
+  )
+}
+
+/**
+ * สเปกอุปกรณ์สองภาษา — แถวละสี่ช่อง ไทยบน อังกฤษล่าง
+ * อ่านค่ากลับด้วย specsFromForm ใน lib/equipment-specs.ts
+ *
+ * ช่องภาษาอังกฤษเว้นว่างได้ หัวข้อที่ระบบรู้จักจะแปลให้เอง (แสดงเป็น placeholder ให้เห็นก่อน)
+ * ค่าที่ว่างใช้ภาษาไทยแทน — ค่าที่มีคำไทยปน เช่น "คงที่" ควรกรอกภาษาอังกฤษเอง
+ */
+export function SpecInput({ name, initial }: { name: string; initial: SpecRow[] }) {
+  const { rows, add, removeAt } = useRows(initial, { label: '', value: '', labelEn: '', valueEn: '' })
+
+  return (
+    <fieldset>
+      <legend className="mb-1 text-sm font-medium">สเปก</legend>
+      <p className="mb-3 text-xs text-muted-foreground">
+        ตรวจกับหมายเลขรุ่นและข้อมูลจากผู้ผลิตก่อนบันทึก ช่องภาษาอังกฤษเว้นว่างได้
+        แต่ค่าที่มีคำไทยปนควรกรอกเอง ไม่งั้นหน้าภาษาอังกฤษจะแสดงคำไทย
+      </p>
+      <div className="space-y-3">
+        {rows.map((row, index) => (
+          <div key={row.id} className="flex gap-2 rounded-md border border-border p-2.5">
+            <div className="grid flex-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
+              <Input
+                name={`${name}Label`}
+                defaultValue={row.data.label}
+                placeholder="หัวข้อ เช่น เซนเซอร์"
+                aria-label={`หัวข้อสเปกรายการที่ ${index + 1} (ไทย)`}
+              />
+              <Input
+                name={`${name}Value`}
+                defaultValue={row.data.value}
+                placeholder="ค่า เช่น Full-frame 24MP"
+                aria-label={`ค่าสเปกรายการที่ ${index + 1} (ไทย)`}
+              />
+              <Input
+                name={`${name}LabelEn`}
+                defaultValue={row.data.labelEn}
+                placeholder={glossaryLabel(row.data.label) ?? 'Label (EN) e.g. Sensor'}
+                aria-label={`หัวข้อสเปกรายการที่ ${index + 1} (อังกฤษ)`}
+              />
+              <Input
+                name={`${name}ValueEn`}
+                defaultValue={row.data.valueEn}
+                placeholder={row.data.value || 'Value (EN)'}
+                aria-label={`ค่าสเปกรายการที่ ${index + 1} (อังกฤษ)`}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => removeAt(index)}
+              aria-label={`ลบสเปกรายการที่ ${index + 1}`}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-destructive hover:text-destructive"
+            >
+              <Trash2 size={16} strokeWidth={1.75} />
+            </button>
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={add}
+        className="mt-2 inline-flex items-center gap-1.5 text-sm text-accent transition-opacity hover:opacity-80"
+      >
+        <Plus size={15} strokeWidth={2} />
+        เพิ่มสเปก
       </button>
     </fieldset>
   )

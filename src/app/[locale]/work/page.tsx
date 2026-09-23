@@ -85,7 +85,7 @@ export default async function WorkPage({
         </>
       )}
 
-    <Section eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')}>
+    <Section headingLevel="h1" eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')}>
       {/*
         ตัวกรองเป็นลิงก์จริง ไม่ใช่ปุ่ม JavaScript
         แต่ละหมวดจึงมี URL ของตัวเอง แชร์ได้ กด back ได้ และ Google เก็บ index ได้

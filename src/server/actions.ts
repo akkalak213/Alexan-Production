@@ -287,5 +287,5 @@ export async function submitLead(_prev: ActionState, formData: FormData): Promis
     ])
   })
 
-  return { status: 'success', messageKey: 'leadSuccess', refCode, receiptSent: isMailConfigured }
+  return { status: 'success', messageKey: 'leadSuccess', refCode, receiptQueued: isMailConfigured }
 }

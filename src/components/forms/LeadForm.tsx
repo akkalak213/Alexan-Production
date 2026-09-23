@@ -165,7 +165,8 @@ export function LeadForm({
             {t('leadSuccessRef', { refCode: state.refCode })}
           </p>
         )}
-        {state.receiptSent && draft.email && (
+        {/* บอกว่ากำลังส่ง ไม่ใช่ส่งแล้ว — ผลการส่งจริงรู้หลังตอบกลับผู้กรอกไปแล้ว (ดู receiptQueued) */}
+        {state.receiptQueued && draft.email && (
           <p className="mt-3 text-sm text-muted-foreground text-pretty">
             {t('leadCopySent', { email: draft.email })}
           </p>
