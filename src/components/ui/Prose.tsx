@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { headingId, textOf } from '@/lib/headings'
 import { cn } from '@/lib/utils'
 
 /**
@@ -8,24 +9,27 @@ import { cn } from '@/lib/utils'
  */
 export function Prose({ children, className }: { children: string; className?: string }) {
   return (
-    <div className={cn('max-w-2xl space-y-5 text-base leading-relaxed', className)}>
+    <div className={cn('prose-body max-w-2xl space-y-5', className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          // id ตรงกับสารบัญที่ markdownHeadings สร้างจากต้นฉบับ ลิงก์ในสารบัญจึงพามาถูกหัวข้อ
           h2: ({ children }) => (
-            <h2 className="mt-12 font-display text-3xl first:mt-0">{children}</h2>
+            <h2 id={headingId(textOf(children))} className="mt-14 scroll-mt-28 font-display text-[1.75rem] leading-snug first:mt-0">
+              {children}
+            </h2>
           ),
           h3: ({ children }) => (
             <h3 className="mt-8 font-display text-2xl first:mt-0">{children}</h3>
           ),
-          p: ({ children }) => <p className="text-muted-foreground text-pretty">{children}</p>,
+          p: ({ children }) => <p className="text-pretty">{children}</p>,
           ul: ({ children }) => (
-            <ul className="ml-5 list-disc space-y-2 text-muted-foreground marker:text-accent">
+            <ul className="ml-5 list-disc space-y-2 marker:text-accent">
               {children}
             </ul>
           ),
           ol: ({ children }) => (
-            <ol className="ml-5 list-decimal space-y-2 text-muted-foreground marker:text-accent">
+            <ol className="ml-5 list-decimal space-y-2 marker:text-accent">
               {children}
             </ol>
           ),

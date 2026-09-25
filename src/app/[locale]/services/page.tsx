@@ -1,13 +1,14 @@
-import { ArrowRight } from 'lucide-react'
 import type { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
-import { Link } from '@/i18n/navigation'
+import type { ServiceCategory } from '@/generated/prisma/enums'
 import { localizedPath, type Locale } from '@/i18n/routing'
 import { pageMetadata } from '@/lib/seo'
-import { buttonClasses } from '@/components/ui/Button'
+import { isPlaceholderImage } from '@/lib/sample-content'
+import { startingPrice } from '@/lib/service-pricing'
+import { ContactBand } from '@/components/ui/ContactBand'
 import { Section } from '@/components/ui/Section'
-import { ServiceCard } from '@/components/services/ServiceCard'
-import { getActiveServices } from '@/server/queries'
+import { ServiceIndex, type ServiceIndexGroup } from '@/components/services/ServiceIndex'
+import { getCategoryShowcase, getHomeServices } from '@/server/queries'
 import { JsonLd } from '@/components/JsonLd'
 import { breadcrumbSchema, collectionPageSchema } from '@/lib/structured-data'
 
@@ -24,6 +25,7 @@ import { breadcrumbSchema, collectionPageSchema } from '@/lib/structured-data'
  */
 export const dynamic = 'force-dynamic'
 
+const DIGITAL: readonly ServiceCategory[] = ['WEB', 'WEB_APP', 'MOBILE_APP']
 
 export async function generateMetadata({
   params,
@@ -45,14 +47,45 @@ export default async function ServicesPage({ params }: { params: Promise<{ local
   const { locale } = await params
   setRequestLocale(locale)
 
-  const [t, tc, tNav, services] = await Promise.all([
+  const [t, tc, tNav, tHome, tContact, services, showcase] = await Promise.all([
     getTranslations('services'),
     getTranslations('common'),
     getTranslations('nav'),
-    getActiveServices(),
+    getTranslations('home'),
+    getTranslations('contact'),
+    getHomeServices(),
+    getCategoryShowcase(),
   ])
 
   const isThai = locale === 'th'
+
+  type Service = (typeof services)[number]
+  const toItem = (service: Service) => {
+    // ภาพปกของบริการเองมาก่อน ถ้าไม่มีใช้ภาพปกผลงานล่าสุดในหมวดเดียวกัน
+    const image = [service.coverImage, showcase[service.category]?.cover].find(
+      (url): url is string => typeof url === 'string' && url !== '' && !isPlaceholderImage(url),
+    )
+    return {
+      id: service.id,
+      href: `/services/${service.slug}`,
+      title: isThai ? service.titleTh : service.titleEn,
+      tagline: isThai ? service.taglineTh : service.taglineEn,
+      highlights: isThai ? service.highlightsTh : service.highlightsEn,
+      price: startingPrice(service.packages[0], locale, tc),
+      image,
+    }
+  }
+  const groupOf = (id: 'digital' | 'visual', members: Service[]): ServiceIndexGroup => ({
+    id,
+    label: tHome(`groups.${id}`),
+    countLabel: t('groupCount', { count: members.length }),
+    items: members.map(toItem),
+  })
+  // สตูดิโอเป็นส่วนหนึ่งของงานภาพ อยู่กลุ่มเดียวกับถ่ายภาพและวิดีโอ
+  const groups = [
+    groupOf('digital', services.filter((service) => DIGITAL.includes(service.category))),
+    groupOf('visual', services.filter((service) => !DIGITAL.includes(service.category))),
+  ]
 
   return (
     <>
@@ -74,34 +107,30 @@ export default async function ServicesPage({ params }: { params: Promise<{ local
           { name: tNav('services'), path: localizedPath(locale, '/services') },
         ])}
       />
-      <Section headingLevel="h1" eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')}>
+      <Section
+        headingLevel="h1"
+        eyebrow={t('eyebrow')}
+        title={t('title')}
+        subtitle={t('subtitle')}
+        action={<p className="page-hero-note">{tHome('servicesPriceNote')}</p>}
+        className="pb-10 md:pb-14"
+      >
         {services.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border py-16 text-center text-sm text-muted-foreground">
             {tc('empty')}
           </p>
         ) : (
-          <ul className="service-grid reveal-stagger">
-            {services.map((service, index) => (
-              <li key={service.id}>
-                <ServiceCard service={service} locale={locale} index={index} actionLabel={tc('viewDetails')} headingAs="h2" />
-              </li>
-            ))}
-          </ul>
+          <ServiceIndex groups={groups} unavailableLabel={tc('imageUnavailable')} />
         )}
       </Section>
 
-      <section className="border-t border-border bg-subtle py-20 md:py-24">
-        <div className="container text-center">
-          <h2 className="font-display text-display-sm text-balance">{t('ctaTitle')}</h2>
-          <p className="mx-auto mt-4 max-w-xl text-muted-foreground text-pretty">
-            {t('ctaSubtitle')}
-          </p>
-          <Link href="/contact" className={buttonClasses('accent', 'lg', 'mt-8')}>
-            {tc('getQuote')}
-            <ArrowRight size={18} strokeWidth={1.75} />
-          </Link>
-        </div>
-      </section>
+      <ContactBand
+        eyebrow={tHome('ctaNote')}
+        title={tHome('ctaTitle')}
+        subtitle={tHome('ctaSubtitle')}
+        actionLabel={tc('getQuote')}
+        note={tContact('responseNote')}
+      />
     </>
   )
 }

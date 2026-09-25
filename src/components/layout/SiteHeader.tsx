@@ -13,6 +13,7 @@ import { Wordmark } from './Wordmark'
 const navItems = [
   { key: 'services', href: '/services' },
   { key: 'work', href: '/work' },
+  { key: 'products', href: '/products' },
   { key: 'rental', href: '/rental' },
   { key: 'reviews', href: '/reviews' },
   { key: 'blog', href: '/blog' },

@@ -1,10 +1,12 @@
 import type {
+  BillingCycle,
   ContentStatus,
   EquipmentCategory,
   EquipmentStatus,
   LeadSource,
   LeadStatus,
   PriceUnit,
+  ProductType,
   QuoteStatus,
   ReviewStatus,
   ServiceCategory,
@@ -34,6 +36,21 @@ export const leadSourceLabels: Record<LeadSource, string> = {
   QUOTE: 'ขอใบเสนอราคา',
   RENTAL: 'เช่าอุปกรณ์',
   SERVICE_PAGE: 'หน้าบริการ',
+  PRODUCT: 'หน้าผลิตภัณฑ์',
+}
+
+export const productTypeLabels: Record<ProductType, string> = {
+  SOFTWARE: 'โปรแกรม (ซื้อขาด)',
+  SUBSCRIPTION: 'ระบบรายเดือน/รายปี',
+  DIGITAL: 'เทมเพลต/ไฟล์ดิจิทัล',
+  PHYSICAL: 'สินค้า (จัดส่ง)',
+}
+
+export const billingCycleLabels: Record<BillingCycle, string> = {
+  ONE_TIME: 'ซื้อขาด',
+  MONTHLY: 'ต่อเดือน',
+  YEARLY: 'ต่อปี',
+  CUSTOM: 'สอบถามราคา',
 }
 
 export const reviewStatusLabels: Record<ReviewStatus, string> = {

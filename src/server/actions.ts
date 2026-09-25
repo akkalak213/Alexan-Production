@@ -9,6 +9,7 @@ import { clientEnv, isMailConfigured } from '@/lib/env'
 import { equipmentName, toNumber } from '@/lib/format'
 import { leadNotificationEmail, leadReceiptEmail, type LeadEmailData, type LeadEmailRental } from '@/lib/lead-email'
 import { emailShell, renderRows, sendInternalNotification, sendMail } from '@/lib/mail'
+import { planPriceTag } from '@/lib/product-pricing'
 import { getClientIpHash, getUserAgent, isRateLimited } from '@/lib/rate-limit'
 import { rentalRequestEstimate } from '@/lib/rental-request'
 import { getSiteSettings } from '@/lib/settings'
@@ -127,6 +128,8 @@ export async function submitLead(_prev: ActionState, formData: FormData): Promis
     packageId: formData.get('packageId') ?? '',
     packageName: formData.get('packageName') ?? '',
     packagePriceTag: formData.get('packagePriceTag') ?? '',
+    productId: formData.get('productId') ?? '',
+    productPlanId: formData.get('productPlanId') ?? '',
     source: formData.get('source') ?? 'CONTACT',
     website: formData.get('website') ?? '',
   })
@@ -159,10 +162,10 @@ export async function submitLead(_prev: ActionState, formData: FormData): Promis
     startDate,
     rentalDays,
     source,
-    packageId,
-    packageName,
-    packagePriceTag,
+    productId,
+    productPlanId,
   } = parsed.data
+  let { packageId, packageName, packagePriceTag } = parsed.data
 
   let refCode: string
   let leadId: string
@@ -202,6 +205,32 @@ export async function submitLead(_prev: ActionState, formData: FormData): Promis
       }
     }
 
+    /**
+     * ผลิตภัณฑ์ที่ลูกค้าสนใจ อ่านชื่อกับราคาจากฐานข้อมูล ไม่ใช้ข้อความจากฟอร์ม
+     * เก็บเป็นข้อความในช่องแพ็กเกจเดียวกับหน้าบริการ ณ ราคาวันที่ลูกค้ากด เผื่อแก้ราคาหรือลบภายหลัง
+     * แพ็กเกจต้องเป็นของผลิตภัณฑ์ชิ้นนั้นจริง id ที่ไม่ตรงกันถูกทิ้งเงียบ ๆ ไม่ทำให้คำขอล้ม
+     */
+    const product = productId
+      ? await db.product.findFirst({
+          where: { id: productId, status: 'PUBLISHED' },
+          select: {
+            id: true,
+            nameTh: true,
+            nameEn: true,
+            plans: { where: { id: productPlanId || '' }, select: { id: true, nameTh: true, nameEn: true, price: true, billing: true } },
+          },
+        })
+      : null
+    const plan = product?.plans[0] ?? null
+    if (product) {
+      const isEnglish = locale === 'en'
+      packageId = ''
+      packageName = [isEnglish ? product.nameEn : product.nameTh, plan && (isEnglish ? plan.nameEn : plan.nameTh)]
+        .filter(Boolean)
+        .join(' · ')
+      packagePriceTag = plan ? planPriceTag(plan, locale) : ''
+    }
+
     const prefix = documentPrefix('AX')
 
     // คำขอสองรายการที่เข้ามาพร้อมกันอาจได้เลขเดียวกัน unique index จะปฏิเสธรายการหลัง แล้วลองเลขถัดไป
@@ -230,6 +259,8 @@ export async function submitLead(_prev: ActionState, formData: FormData): Promis
           packageId: packageId || null,
           packageName: packageName || null,
           packagePriceTag: packagePriceTag || null,
+          productId: product?.id ?? null,
+          productPlanId: plan?.id ?? null,
           items: {
             create: equipment.map((item) => ({
               equipmentId: item.id,

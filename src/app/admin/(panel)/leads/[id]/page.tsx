@@ -51,6 +51,10 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     : null
   const lineById = new Map(estimate?.lines.map((line) => [line.id, line]))
 
+  // คำขอจากหน้าผลิตภัณฑ์ใช้ช่องแพ็กเกจเก็บชื่อกับราคาเหมือนกัน แต่ของที่ชี้กลับไปคือผลิตภัณฑ์ ไม่ใช่แพ็กเกจบริการ
+  const isProductLead = lead.source === 'PRODUCT'
+  const offerRemoved = isProductLead ? !lead.product : !lead.package
+
   return (
     <div className="mx-auto max-w-4xl">
       <Link
@@ -81,7 +85,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           {lead.packageName && (
             <section className="rounded-lg border border-accent/40 bg-accent-subtle p-5">
               <h2 className="text-xs font-medium uppercase tracking-wider text-accent">
-                แพ็กเกจที่ลูกค้าเลือก
+                {isProductLead ? 'ผลิตภัณฑ์ที่ลูกค้าสนใจ' : 'แพ็กเกจที่ลูกค้าเลือก'}
               </h2>
               <p className="mt-2 text-lg font-medium">
                 {lead.package?.service?.titleTh && `${lead.package.service.titleTh} · `}
@@ -92,9 +96,19 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                   ราคาที่ลูกค้าเห็นตอนกด: {lead.packagePriceTag}
                 </p>
               )}
-              {!lead.package && (
+              {isProductLead && lead.product && (
+                <a
+                  href={`/products/${lead.product.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex text-xs text-accent underline underline-offset-4 hover:no-underline"
+                >
+                  เปิดหน้าผลิตภัณฑ์ที่ลูกค้าเห็น
+                </a>
+              )}
+              {offerRemoved && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  แพ็กเกจนี้ถูกลบออกจากระบบแล้ว ข้อมูลด้านบนเป็นค่าที่บันทึกไว้ตอนลูกค้าส่งคำขอ
+                  {isProductLead ? 'ผลิตภัณฑ์' : 'แพ็กเกจ'}นี้ถูกลบออกจากระบบแล้ว ข้อมูลด้านบนเป็นค่าที่บันทึกไว้ตอนลูกค้าส่งคำขอ
                 </p>
               )}
             </section>

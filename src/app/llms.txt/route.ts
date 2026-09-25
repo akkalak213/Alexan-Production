@@ -1,7 +1,8 @@
 import { clientEnv } from '@/lib/env'
 import { equipmentName } from '@/lib/format'
+import { lowestPlan, planPriceTag } from '@/lib/product-pricing'
 import { getSiteSettings } from '@/lib/settings'
-import { getActiveServices, getEquipment, getPosts, getProjects } from '@/server/queries'
+import { getActiveServices, getEquipment, getPosts, getProducts, getProjects } from '@/server/queries'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,13 +34,19 @@ function line(name: string, path: string, description?: string): string {
   return `- [${name}](${siteUrl}${path})${suffix}`
 }
 
+/** หมวดที่อ่านไม่สำเร็จหายไปจากสารบัญหมวดเดียว ไม่ทำให้ทั้งไฟล์ตอบ 500 (เหตุผลเดียวกับ sitemap.ts) */
+function orEmpty<T>(rows: Promise<T[]>): Promise<T[]> {
+  return rows.catch(() => [])
+}
+
 export async function GET() {
-  const [settings, services, projects, equipment, posts] = await Promise.all([
+  const [settings, services, projects, equipment, posts, products] = await Promise.all([
     getSiteSettings(),
-    getActiveServices(),
-    getProjects(),
-    getEquipment(),
-    getPosts(),
+    orEmpty(getActiveServices()),
+    orEmpty(getProjects()),
+    orEmpty(getEquipment()),
+    orEmpty(getPosts()),
+    orEmpty(getProducts()),
   ])
 
   const { company, hero } = settings
@@ -114,6 +121,25 @@ export async function GET() {
             equipmentName(item.brand, item.model),
             `/rental/${item.slug}`,
             `${[rate, short(item.descriptionTh, 90)].filter(Boolean).join(' · ')}${unavailable}`,
+          )
+        }),
+      ].join('\n'),
+    )
+  }
+
+  if (products.length) {
+    sections.push(
+      [
+        '## ผลิตภัณฑ์ (Products)',
+        line('ผลิตภัณฑ์ทั้งหมด', '/products', `รวม ${products.length} รายการ`),
+        // ราคาเริ่มต้นพร้อมหน่วยในบรรทัดเดียว ตอบคำถาม "<ชื่อโปรแกรม> ราคาเท่าไหร่" ได้ทันที
+        ...products.map((product) => {
+          const lowest = lowestPlan(product.plans)
+          const price = lowest ? `เริ่มต้น ${planPriceTag(lowest, 'th')}` : ''
+          return line(
+            product.nameTh,
+            `/products/${product.slug}`,
+            [price, short(product.taglineTh, 90)].filter(Boolean).join(' · '),
           )
         }),
       ].join('\n'),

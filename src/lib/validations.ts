@@ -71,7 +71,10 @@ export const leadSchema = z
     packageId: z.string().max(40).optional().or(z.literal('')),
     packageName: z.string().max(160).optional().or(z.literal('')),
     packagePriceTag: z.string().max(120).optional().or(z.literal('')),
-    source: z.enum(['CONTACT', 'QUOTE', 'RENTAL', 'SERVICE_PAGE']).default('CONTACT'),
+    /** ผลิตภัณฑ์และแพ็กเกจที่สนใจจากหน้า /products — ส่งมาแค่ id ชื่อกับราคาอ่านจากฐานข้อมูลเสมอ */
+    productId: z.string().max(40).optional().or(z.literal('')),
+    productPlanId: z.string().max(40).optional().or(z.literal('')),
+    source: z.enum(['CONTACT', 'QUOTE', 'RENTAL', 'SERVICE_PAGE', 'PRODUCT']).default('CONTACT'),
     website: z.literal('').optional(),
   })
   .superRefine((data, ctx) => {
@@ -79,7 +82,8 @@ export const leadSchema = z
      * คำขอเช่ามีอุปกรณ์ วันที่ และจำนวนวันบอกสิ่งที่ทีมต้องรู้ครบแล้ว
      * เดิมบังคับให้ลูกค้าพิมพ์อย่างน้อย 10 ตัวอักษรทุกฟอร์ม เป็นขั้นตอนที่ไม่ได้ข้อมูลอะไรเพิ่ม
      */
-    if (data.equipmentIds.length === 0 && data.message.length < 10) {
+    // คำขอผลิตภัณฑ์ก็เช่นกัน ชื่อผลิตภัณฑ์กับแพ็กเกจบอกเจตนาครบแล้ว ข้อความเป็นแค่ส่วนเสริม
+    if (data.equipmentIds.length === 0 && !data.productId && data.message.length < 10) {
       ctx.addIssue({ code: 'custom', path: ['message'], message: 'ต้องกรอกรายละเอียดอย่างน้อย 10 ตัวอักษร' })
     }
 

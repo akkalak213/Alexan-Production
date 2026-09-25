@@ -9,6 +9,7 @@ import {
   LogOut,
   Menu,
   Newspaper,
+  Package,
   ReceiptText,
   Settings,
   Star,
@@ -42,6 +43,7 @@ const groups: { heading: string; items: NavItem[] }[] = [
     items: [
       { href: '/admin/projects', label: 'ผลงาน', icon: Camera },
       { href: '/admin/services', label: 'บริการ', icon: Boxes },
+      { href: '/admin/products', label: 'ผลิตภัณฑ์', icon: Package },
       { href: '/admin/equipment', label: 'อุปกรณ์เช่า', icon: Camera },
       { href: '/admin/posts', label: 'บทความ', icon: Newspaper },
       { href: '/admin/team', label: 'ทีมงาน', icon: Users },

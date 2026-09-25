@@ -18,6 +18,7 @@ const serviceLinks = [
 const companyLinks = [
   { key: 'about', href: '/about' },
   { key: 'work', href: '/work' },
+  { key: 'products', href: '/products' },
   { key: 'rental', href: '/rental' },
   { key: 'reviews', href: '/reviews' },
   { key: 'blog', href: '/blog' },

@@ -66,6 +66,44 @@ export const getServiceBySlug = cache(
   ),
 )
 
+/**
+ * ภาพปกผลงานล่าสุดของแต่ละหมวด พร้อมจำนวนผลงาน
+ * หน้ารวมบริการใช้เป็นภาพตัวอย่างของบริการที่แอดมินยังไม่ได้ใส่ภาพปกของบริการเอง
+ */
+export const getCategoryShowcase = cache(
+  cachedQuery('projects:showcase', ['projects'], () =>
+    safe('category-showcase', async () => {
+      /*
+       * นับต่อหมวดในฐานข้อมูล แล้วหยิบภาพปกหมวดละหนึ่งแถว (หมวดมีไม่เกินหกหมวด)
+       * ไม่ดึงผลงานทั้งตารางมาไล่เอง — distinct ของ Prisma ทำในหน่วยความจำ ยังอ่านทุกแถวอยู่ดี
+       */
+      const counts = await db.project.groupBy({ by: ['category'], where: publicProjectWhere, _count: { _all: true } })
+      const firsts = await Promise.all(
+        counts.map((row) =>
+          db.project.findFirst({
+            where: { ...publicProjectWhere, category: row.category },
+            orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }, { order: 'asc' }],
+            select: { coverImage: true },
+          }),
+        ),
+      )
+      const showcase: Partial<Record<ServiceCategory, { cover: string; count: number }>> = {}
+      counts.forEach((row, index) => {
+        const cover = firsts[index]?.coverImage
+        if (cover) showcase[row.category] = { cover, count: row._count._all }
+      })
+      return showcase
+    }),
+  ),
+)
+
+/** จำนวนผลงานที่เผยแพร่ สำหรับตัวเลขบนหน้าเกี่ยวกับเรา — นับในฐานข้อมูล ไม่ดึงทั้งรายการมานับ */
+export const getPublicProjectCount = cache(
+  cachedQuery('projects:count', ['projects'], () =>
+    safe('project-count', () => db.project.count({ where: publicProjectWhere })),
+  ),
+)
+
 export const getServiceSlugs = cache(
   cachedQuery('services:slugs', ['services'], () =>
     safe('service-slugs', () =>
@@ -246,6 +284,53 @@ export const getRelatedEquipment = cache(
           take,
         }),
       ),
+  ),
+)
+
+// ─────────────────────────── ผลิตภัณฑ์ ───────────────────────────
+
+/** เฉพาะที่เผยแพร่แล้ว ฉบับร่างกับที่เก็บเข้ากรุไม่ขึ้นหน้าเว็บ แต่ลิงก์เดิมที่ลูกค้าถือยังเปิดหน้า 404 ได้ตามปกติ */
+const publicProductWhere = { status: 'PUBLISHED' } as const
+
+export const getProducts = cache(
+  cachedQuery('products:list', ['products'], () =>
+    safe('products', () =>
+      db.product.findMany({
+        where: publicProductWhere,
+        orderBy: [{ isFeatured: 'desc' }, { order: 'asc' }],
+        select: {
+          id: true,
+          slug: true,
+          type: true,
+          nameTh: true,
+          nameEn: true,
+          taglineTh: true,
+          taglineEn: true,
+          coverImage: true,
+          isAvailable: true,
+          plans: { select: { price: true, billing: true }, orderBy: { order: 'asc' } },
+        },
+      }),
+    ),
+  ),
+)
+
+export const getProductBySlug = cache(
+  cachedQuery('products:detail', ['products'], (slug: string) =>
+    safe('product-detail', () =>
+      db.product.findFirst({
+        where: { slug, ...publicProductWhere },
+        include: { plans: { orderBy: { order: 'asc' } } },
+      }),
+    ),
+  ),
+)
+
+export const getProductSlugs = cache(
+  cachedQuery('products:slugs', ['products'], () =>
+    safe('product-slugs', () =>
+      db.product.findMany({ where: publicProductWhere, select: { slug: true, updatedAt: true } }),
+    ),
   ),
 )
 

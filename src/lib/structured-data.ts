@@ -596,3 +596,69 @@ export function videoObjectSchema({
     },
   }
 }
+
+// ──────────────────── ผลิตภัณฑ์ ────────────────────
+
+/**
+ * ผลิตภัณฑ์หนึ่งชิ้นพร้อมราคาแต่ละแพ็กเกจ
+ *
+ * โปรแกรมกับระบบรายเดือนประกาศเป็น SoftwareApplication เทมเพลตกับสินค้าเป็น Product
+ * แพ็กเกจรายเดือน/รายปีต้องบอกหน่วยเวลาใน priceSpecification (MON / ANN ตามรหัส UN/CEFACT)
+ * ไม่งั้น "490" จะถูกอ่านเป็นราคาขายขาด แพ็กเกจที่ไม่มีราคา (สอบถาม) ไม่ส่งเป็น offer
+ */
+export function productSchema({
+  name,
+  description,
+  type,
+  image,
+  plans,
+  isAvailable,
+  locale,
+  slug,
+}: {
+  name: string
+  description: string
+  type: 'SOFTWARE' | 'SUBSCRIPTION' | 'DIGITAL' | 'PHYSICAL'
+  image: string | null
+  plans: { name: string; amount: number | null; billing: 'ONE_TIME' | 'MONTHLY' | 'YEARLY' | 'CUSTOM' }[]
+  isAvailable: boolean
+  locale: Locale
+  slug: string
+}) {
+  const url = absoluteUrl(localizedPath(locale, `/products/${slug}`))
+  const isSoftware = type === 'SOFTWARE' || type === 'SUBSCRIPTION'
+  const unitCode = { MONTHLY: 'MON', YEARLY: 'ANN' } as const
+
+  const offers = plans
+    .filter((plan): plan is typeof plan & { amount: number } => plan.amount !== null)
+    .map((plan) => ({
+      '@type': 'Offer',
+      name: plan.name,
+      price: plan.amount,
+      priceCurrency: 'THB',
+      ...(plan.billing === 'MONTHLY' || plan.billing === 'YEARLY'
+        ? {
+            priceSpecification: {
+              '@type': 'UnitPriceSpecification',
+              price: plan.amount,
+              priceCurrency: 'THB',
+              referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitCode: unitCode[plan.billing] },
+            },
+          }
+        : {}),
+      availability: isAvailable ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      seller: organizationRef,
+      url,
+    }))
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': isSoftware ? 'SoftwareApplication' : 'Product',
+    name,
+    description,
+    url,
+    ...(image ? { image: [image] } : {}),
+    ...(isSoftware ? { applicationCategory: 'BusinessApplication' } : { brand: organizationRef }),
+    ...(offers.length ? { offers } : {}),
+  }
+}

@@ -2,12 +2,13 @@ import { ArrowUpRight, Check, MessageSquare, SlidersHorizontal } from 'lucide-re
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Fragment, type CSSProperties } from 'react'
 import { Link } from '@/i18n/navigation'
-import type { PriceUnit, ServiceCategory } from '@/generated/prisma/enums'
+import type { ServiceCategory } from '@/generated/prisma/enums'
 import type { Locale } from '@/i18n/routing'
 import { buttonClasses } from '@/components/ui/Button'
 import { Section } from '@/components/ui/Section'
 import { Faq } from '@/components/ui/Faq'
 import { ContentImage } from '@/components/ui/ContentImage'
+import { ContactBand } from '@/components/ui/ContactBand'
 import { EquipmentIcon } from '@/components/ui/EquipmentIcon'
 import { HomeMotion } from '@/components/home/HomeMotion'
 import { StudioScene } from '@/components/home/StudioScene'
@@ -19,6 +20,7 @@ import { GearRail } from '@/components/home/GearRail'
 import { ReviewCard } from '@/components/reviews/ReviewCard'
 import { getSiteSettings } from '@/lib/settings'
 import { equipmentName, formatPrice } from '@/lib/format'
+import { startingPrice } from '@/lib/service-pricing'
 import { safeExternalUrl } from '@/lib/external-link'
 import { isPlaceholderImage } from '@/lib/sample-content'
 import {
@@ -53,15 +55,6 @@ const VISUAL: readonly ServiceCategory[] = ['PHOTOGRAPHY', 'VIDEO']
 
 /** โมเสกออกแบบไว้ที่เจ็ดช่อง เต็มพอดีทั้งกริดสองคอลัมน์บนมือถือและสี่คอลัมน์บนคอม */
 const MOSAIC_SIZE = 7
-
-const UNIT_KEYS = {
-  PROJECT: 'perProject',
-  DAY: 'perDay',
-  HALF_DAY: 'perHalfDay',
-  HOUR: 'perHour',
-  MONTH: 'perMonth',
-  PERSON: 'perPerson',
-} as const satisfies Record<Exclude<PriceUnit, 'CUSTOM'>, string>
 
 /**
  * ภาษาไทยไม่เว้นวรรคระหว่างคำ เบราว์เซอร์จึงตัดบรรทัดได้ทุกขอบคำ
@@ -114,13 +107,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
 
   // ───── บริการและราคาเริ่มต้น ─────
   type HomeService = (typeof services)[number]
-  const priceOf = (service: HomeService) => {
-    const pkg = service.packages[0]
-    if (!pkg) return undefined
-    if (pkg.priceUnit === 'CUSTOM') return { amount: tc('customPrice') }
-    const amount = formatPrice(pkg.priceFrom, locale)
-    return amount ? { from: tc('startingFrom'), amount, unit: tc(UNIT_KEYS[pkg.priceUnit]) } : { amount: tc('customPrice') }
-  }
+  const priceOf = (service: HomeService) => startingPrice(service.packages[0], locale, tc)
   const toMenuItem = (service: HomeService) => ({
     id: service.id,
     href: `/services/${service.slug}`,
@@ -493,26 +480,14 @@ export default async function HomePage({ params }: { params: Promise<{ locale: L
       )}
 
       {/* ───────────── ชวนคุย ───────────── */}
-      <section aria-labelledby="contact-title" className="home-contact">
-        <div className="container">
-          <div className="contact-band" data-enter>
-            <div>
-              <p className="section-eyebrow">{t('ctaNote')}</p>
-              <h2 id="contact-title" className="font-display text-balance">
-                {t('ctaTitle')}
-              </h2>
-              <p>{t('ctaSubtitle')}</p>
-            </div>
-            <div className="contact-band-action">
-              <Link href="/contact" className={buttonClasses('primary', 'lg')}>
-                {tc('getQuote')}
-                <ArrowUpRight size={19} aria-hidden />
-              </Link>
-              <small>{tContact('responseNote')}</small>
-            </div>
-          </div>
-        </div>
-      </section>
+      <ContactBand
+        id="contact-title"
+        eyebrow={t('ctaNote')}
+        title={t('ctaTitle')}
+        subtitle={t('ctaSubtitle')}
+        actionLabel={tc('getQuote')}
+        note={tContact('responseNote')}
+      />
     </HomeMotion>
   )
 }

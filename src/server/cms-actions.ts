@@ -7,10 +7,12 @@ import type {
   EquipmentCategory,
   EquipmentStatus,
   PriceUnit,
+  ProductType,
   ServiceCategory,
 } from '@/generated/prisma/enums'
 import { db } from '@/lib/db'
 import { specsFromForm } from '@/lib/equipment-specs'
+import { plansFromForm } from '@/lib/product-plans'
 import type { AdminActionState } from './admin-state'
 import type { CacheTag } from './cache'
 import {
@@ -340,6 +342,139 @@ export async function deleteEquipment(formData: FormData) {
   revalidateSite('/[locale]/rental', '/[locale]/rental/[slug]', '/[locale]')
   revalidateAdmin('/admin/equipment')
   redirect('/admin/equipment')
+}
+
+// ─────────────────────────── ผลิตภัณฑ์ ───────────────────────────
+
+const PRODUCT_PATHS = ['/[locale]/products', '/[locale]/products/[slug]', '/[locale]'] as const
+
+/**
+ * บันทึกผลิตภัณฑ์พร้อมแพ็กเกจราคาในทรานแซกชันเดียว
+ *
+ * แพ็กเกจแก้ทีละแถวตาม id (ดู lib/product-plans.ts) ไม่ลบทิ้งทั้งชุด ลิงก์ ?plan= เดิมจึงยังใช้ได้
+ * แถวที่หายไปจากฟอร์ม = ถูกลบ คำขอเก่าที่ผูกแพ็กเกจนั้นไว้ยังเก็บชื่อกับราคาเป็นข้อความอยู่ครบ
+ */
+export async function saveProduct(
+  _prev: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  await requireEditor()
+
+  const id = optionalText(formData, 'id')
+  const nameTh = text(formData, 'nameTh')
+  if (!nameTh) return { status: 'error', message: 'ต้องกรอกชื่อผลิตภัณฑ์ภาษาไทย', field: 'nameTh' }
+  const taglineTh = text(formData, 'taglineTh')
+  if (!taglineTh) return { status: 'error', message: 'ต้องกรอกคำโปรยสั้น ๆ ภาษาไทย', field: 'taglineTh' }
+
+  // สามช่องนี้ไปจบที่ href และ iframe บนหน้าเว็บ — กันค่าที่กดแล้วรันสคริปต์ตั้งแต่ตอนบันทึก
+  const badUrls = invalidUrlFields(formData, {
+    videoUrl: 'ลิงก์วิดีโอ',
+    demoUrl: 'ลิงก์ทดลองใช้',
+    buyUrl: 'ลิงก์ร้านค้า',
+  })
+  if (badUrls.length) {
+    return { status: 'error', message: `${badUrls.join(' และ ')} ${URL_FIELD_MESSAGE}` }
+  }
+
+  const plans = plansFromForm(formData)
+  if (plans.error !== null) return { status: 'error', message: plans.error }
+
+  const descriptionTh = text(formData, 'descriptionTh')
+  const data = {
+    slug: slugify(text(formData, 'slug') || text(formData, 'nameEn') || nameTh),
+    type: text(formData, 'type') as ProductType,
+    nameTh,
+    nameEn: text(formData, 'nameEn') || nameTh,
+    taglineTh,
+    taglineEn: text(formData, 'taglineEn') || taglineTh,
+    descriptionTh,
+    descriptionEn: text(formData, 'descriptionEn') || descriptionTh,
+    featuresTh: pairs(formData, 'featuresTh', 'title', 'detail'),
+    featuresEn: pairs(formData, 'featuresEn', 'title', 'detail'),
+    specs: specsFromForm(formData, 'specs'),
+    faqTh: pairs(formData, 'faqTh', 'question', 'answer'),
+    faqEn: pairs(formData, 'faqEn', 'question', 'answer'),
+    coverImage: optionalText(formData, 'coverImage'),
+    gallery: list(formData, 'gallery'),
+    videoUrl: optionalText(formData, 'videoUrl'),
+    demoUrl: optionalText(formData, 'demoUrl'),
+    buyUrl: optionalText(formData, 'buyUrl'),
+    status: text(formData, 'status') as ContentStatus,
+    isAvailable: boolean(formData, 'isAvailable'),
+    isFeatured: boolean(formData, 'isFeatured'),
+    order: integer(formData, 'order'),
+  }
+
+  const planData = (row: (typeof plans.rows)[number]) => ({
+    nameTh: row.nameTh,
+    nameEn: row.nameEn,
+    price: row.price,
+    billing: row.billing,
+    includesTh: row.includesTh,
+    includesEn: row.includesEn,
+    isPopular: row.isPopular,
+    buyUrl: row.buyUrl,
+    order: row.order,
+  })
+
+  try {
+    if (id) {
+      const existing = await db.product.findUnique({
+        where: { id },
+        select: { updatedAt: true, plans: { select: { id: true } } },
+      })
+      if (!existing) return { status: 'error', message: 'ไม่พบผลิตภัณฑ์นี้ อาจถูกลบไปแล้ว' }
+      if (isStaleWrite(text(formData, 'expectedVersion'), existing.updatedAt)) {
+        return { status: 'error', message: STALE_WRITE_MESSAGE }
+      }
+
+      const known = new Set(existing.plans.map((plan) => plan.id))
+      const kept = plans.rows.filter((row) => row.id && known.has(row.id))
+      const keptIds = new Set(kept.map((row) => row.id))
+
+      const [updated] = await db.$transaction([
+        // แตะ updatedAt ของผลิตภัณฑ์ทุกครั้ง แม้แก้แค่แพ็กเกจ ฟอร์มที่เปิดค้างอีกแท็บจึงรู้ว่าตัวเองเก่าแล้ว
+        db.product.update({ where: { id }, data, select: { updatedAt: true } }),
+        db.productPlan.deleteMany({ where: { productId: id, id: { notIn: [...keptIds] as string[] } } }),
+        ...kept.map((row) => db.productPlan.update({ where: { id: row.id! }, data: planData(row) })),
+        ...plans.rows
+          .filter((row) => !row.id || !known.has(row.id))
+          .map((row) => db.productPlan.create({ data: { ...planData(row), productId: id } })),
+      ])
+
+      refreshPublicData('products')
+      revalidateSite(...PRODUCT_PATHS)
+      revalidateAdmin('/admin/products', `/admin/products/${id}`)
+      return { status: 'success', message: 'บันทึกผลิตภัณฑ์แล้ว', version: versionOf(updated.updatedAt) }
+    }
+
+    await db.product.create({
+      data: { ...data, plans: { create: plans.rows.map(planData) } },
+    })
+    refreshPublicData('products')
+    revalidateSite(...PRODUCT_PATHS)
+    revalidateAdmin('/admin/products')
+    redirect('/admin/products')
+  } catch (error) {
+    if (typeof error === 'object' && error !== null && 'digest' in error) throw error
+    return failure(error, 'saveProduct')
+  }
+}
+
+export async function deleteProduct(formData: FormData) {
+  await requireEditor()
+
+  try {
+    // คำขอที่เคยผูกไว้ถูกตั้งเป็น null อัตโนมัติ (onDelete: SetNull) ชื่อกับราคาที่ลูกค้าเห็นยังอยู่ในคำขอ
+    await db.product.delete({ where: { id: text(formData, 'id') } })
+  } catch (error) {
+    console.error('[cms:deleteProduct]', error)
+  }
+
+  refreshPublicData('products')
+  revalidateSite(...PRODUCT_PATHS)
+  revalidateAdmin('/admin/products')
+  redirect('/admin/products')
 }
 
 // ─────────────────────────── บริการ ───────────────────────────

@@ -21,6 +21,11 @@ export type ReviewCardData = {
   createdAt: Date
 }
 
+/** ตัวอักษรแรกของชื่อในวงกลมแทนรูป ข้ามสระหน้าของไทย (เ แ โ ใ ไ) ที่ยืนเดี่ยวแล้วอ่านไม่ออก */
+function initialOf(name: string) {
+  return Array.from(name.trim()).find((char) => !'เแโใไ'.includes(char))?.toUpperCase() ?? '?'
+}
+
 export async function ReviewCard({
   review,
   locale,
@@ -40,58 +45,55 @@ export async function ReviewCard({
   return (
     <article
       className={cn(
-        'flex h-full flex-col rounded-lg border border-border bg-surface p-6 md:p-7',
+        'review-card flex h-full flex-col rounded-2xl border border-border bg-surface p-6 md:p-7',
         className,
       )}
     >
-      <div className="flex items-start justify-between gap-4">
-        <RatingStars
-          rating={review.rating}
-          label={t('starsOf', { rating: review.rating })}
-        />
-        {review.isPinned && (
-          <Badge variant="accent" className="shrink-0">
-            {t('pinned')}
-          </Badge>
-        )}
+      {/* เครื่องหมายคำพูดอยู่แถวของตัวเอง ไม่ซ้อนใต้ข้อความ เดิมซ้อนแล้วทับอักษรตัวแรกของรีวิว */}
+      <div className="flex items-center justify-between gap-4">
+        <Quote size={26} strokeWidth={0} aria-hidden className="review-card-mark rotate-180 fill-current" />
+        <div className="flex items-center gap-2">
+          {review.isPinned && (
+            <Badge variant="accent" className="shrink-0">
+              {t('pinned')}
+            </Badge>
+          )}
+          <RatingStars
+            rating={review.rating}
+            label={t('starsOf', { rating: review.rating })}
+          />
+        </div>
       </div>
 
-      <div className="relative mt-5 flex-1">
-        <Quote
-          size={32}
-          aria-hidden
-          className="absolute -left-1 -top-2 rotate-180 text-muted-foreground/10"
-        />
-        {/* lang บอกเบราว์เซอร์ให้เลือกฟอนต์และตัดคำถูกภาษา แม้ผู้รีวิวเขียนคนละภาษากับหน้าเว็บ */}
-        <p
-          lang={review.locale}
-          className="relative text-[0.95rem] leading-relaxed text-foreground/90 text-pretty"
-        >
-          {review.content}
-        </p>
-      </div>
+      {/* lang บอกเบราว์เซอร์ให้เลือกฟอนต์และตัดคำถูกภาษา แม้ผู้รีวิวเขียนคนละภาษากับหน้าเว็บ */}
+      <p lang={review.locale} className="review-card-text mt-4 flex-1">
+        {review.content}
+      </p>
 
       <footer className="mt-6 border-t border-border pt-4">
-        <div className="flex items-end justify-between gap-4">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{review.authorName}</p>
-            {review.authorRole && (
-              <p className="truncate text-xs text-muted-foreground">{review.authorRole}</p>
-            )}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="review-card-avatar" aria-hidden>
+              {initialOf(review.authorName)}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-[0.9375rem] font-medium">{review.authorName}</p>
+              <p className="truncate text-[0.8125rem] text-muted-foreground">
+                {review.authorRole || formatMonthYear(review.createdAt, locale)}
+              </p>
+            </div>
           </div>
-          <div className="shrink-0 text-right">
-            {review.serviceCategory && (
-              <p className="text-xs text-accent">{tCat(review.serviceCategory)}</p>
+          <div className="shrink-0 text-right text-[0.8125rem] leading-snug">
+            {review.serviceCategory && <p className="text-accent">{tCat(review.serviceCategory)}</p>}
+            {review.authorRole && (
+              <p className="text-muted-foreground">{formatMonthYear(review.createdAt, locale)}</p>
             )}
-            <p className="text-xs text-muted-foreground">
-              {formatMonthYear(review.createdAt, locale)}
-            </p>
           </div>
         </div>
 
         {reply && (
           <div className="mt-4 rounded-md bg-subtle p-4">
-            <p className="mb-1.5 text-xs font-medium text-accent">{t('ownerReply')}</p>
+            <p className="mb-1.5 text-[0.8125rem] font-medium text-accent">{t('ownerReply')}</p>
             <p className="text-sm leading-relaxed text-muted-foreground text-pretty">{reply}</p>
           </div>
         )}

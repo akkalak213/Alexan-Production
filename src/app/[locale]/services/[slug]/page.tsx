@@ -1,11 +1,13 @@
-import { ArrowRight, Check } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, Check } from 'lucide-react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
+import type { PriceUnit } from '@/generated/prisma/enums'
 import { Link } from '@/i18n/navigation'
 import { localizedPath, type Locale } from '@/i18n/routing'
 import { pageMetadata } from '@/lib/seo'
 import { Badge } from '@/components/ui/Badge'
+import { buttonClasses } from '@/components/ui/Button'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { Faq, type FaqItem } from '@/components/ui/Faq'
 import { LeadForm } from '@/components/forms/LeadForm'
@@ -14,6 +16,7 @@ import { Section } from '@/components/ui/Section'
 import { ServiceIcon } from '@/components/ui/ServiceIcon'
 import { JsonLd } from '@/components/JsonLd'
 import { formatPrice, toNumber } from '@/lib/format'
+import { PRICE_UNIT_KEYS, startingPrice } from '@/lib/service-pricing'
 import { breadcrumbSchema, faqSchema, serviceSchema } from '@/lib/structured-data'
 import { cn } from '@/lib/utils'
 import { getProjects, getServiceBySlug } from '@/server/queries'
@@ -116,22 +119,14 @@ export default async function ServiceDetailPage({
   const process = asProcess(isThai ? service.processTh : service.processEn)
   const faq = asFaq(isThai ? service.faqTh : service.faqEn)
 
-  const priceUnitLabel = {
-    PROJECT: tc('perProject'),
-    DAY: tc('perDay'),
-    HALF_DAY: tc('perHalfDay'),
-    HOUR: tc('perHour'),
-    MONTH: tc('perMonth'),
-    PERSON: tc('perPerson'),
-    CUSTOM: '',
-  } as const
+  const priceUnitLabel = (unit: PriceUnit) => (unit === 'CUSTOM' ? '' : tc(PRICE_UNIT_KEYS[unit]))
 
-  // ราคาต่ำสุดในบรรดาแพ็กเกจ ใช้บอก Google ว่าบริการนี้เริ่มต้นที่เท่าไหร่
-  const lowPrice = service.packages.reduce<number | null>((lowest, pkg) => {
-    const price = toNumber(pkg.priceFrom)
-    if (price === null) return lowest
-    return lowest === null || price < lowest ? price : lowest
-  }, null)
+  // ราคาต่ำสุดในบรรดาแพ็กเกจ ใช้บอก Google ว่าบริการนี้เริ่มต้นที่เท่าไหร่ และขึ้นเป็นตัวเลขแรกบนหัวหน้า
+  const cheapest = [...service.packages].sort(
+    (a, b) => (toNumber(a.priceFrom) ?? Infinity) - (toNumber(b.priceFrom) ?? Infinity),
+  )[0]
+  const lowPrice = cheapest ? toNumber(cheapest.priceFrom) : null
+  const fromPrice = startingPrice(cheapest, locale, tc)
 
   return (
     <>
@@ -145,7 +140,7 @@ export default async function ServiceDetailPage({
       />
       <JsonLd data={faqSchema(faq)} />
 
-      <section className="border-b border-border py-14 md:py-20">
+      <section className="border-b border-border pb-14 pt-10 md:pb-20 md:pt-14">
         <div className="container">
           <Breadcrumbs
             items={[
@@ -155,33 +150,54 @@ export default async function ServiceDetailPage({
             ]}
           />
 
-          <div className="grid gap-10 lg:grid-cols-[1.3fr_1fr] lg:items-start lg:gap-16">
-            <div>
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-accent-subtle text-accent">
-                <ServiceIcon name={service.icon} size={22} strokeWidth={1.6} />
-              </span>
-              <h1 className="mt-6 font-display text-display-lg text-balance">{title}</h1>
-              <p className="mt-4 max-w-2xl text-lg leading-relaxed text-muted-foreground text-pretty">
-                {tagline}
+          <div className="svc-hero">
+            <div className="svc-hero-copy">
+              <p className="svc-hero-kicker">
+                <span>
+                  <ServiceIcon name={service.icon} size={18} strokeWidth={1.6} aria-hidden />
+                </span>
+                {tCat(service.category)}
               </p>
-              <p className="mt-6 max-w-2xl leading-relaxed text-muted-foreground text-pretty">
-                {description}
-              </p>
+              <h1 className="font-display text-display-lg text-balance">{title}</h1>
+              <p className="svc-hero-tagline">{tagline}</p>
+              <p className="svc-hero-description">{description}</p>
+              <div className="svc-hero-actions">
+                <a href="#lead-form" className={buttonClasses('accent', 'lg')}>
+                  {tc('getQuote')}
+                  <ArrowUpRight size={19} aria-hidden />
+                </a>
+                {service.packages.length > 0 && (
+                  <a href="#packages" className={buttonClasses('outline', 'lg')}>
+                    {t('viewPackages')}
+                  </a>
+                )}
+              </div>
             </div>
 
-            {highlights.length > 0 && (
-              <div className="rounded-lg border border-border bg-subtle p-7">
-                <h2 className="mb-5 text-sm font-medium">{t('highlightsTitle')}</h2>
-                <ul className="space-y-3">
-                  {/* ข้อความอิสระที่แอดมินพิมพ์เอง ซ้ำกันได้ จึงยึดลำดับเป็น key */}
-                  {highlights.map((item, index) => (
-                    <li key={index} className="flex gap-3 text-sm text-muted-foreground">
-                      <Check size={16} strokeWidth={2} aria-hidden className="mt-0.5 shrink-0 text-accent" />
-                      <span className="text-pretty">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            {(highlights.length > 0 || fromPrice) && (
+              <aside className="svc-glance" aria-label={t('highlightsTitle')}>
+                {fromPrice && (
+                  <p className="svc-glance-price">
+                    {fromPrice.from && <small>{fromPrice.from}</small>}
+                    <b>{fromPrice.amount}</b>
+                    {fromPrice.unit && <small>{fromPrice.unit}</small>}
+                  </p>
+                )}
+                {highlights.length > 0 && (
+                  <>
+                    <h2>{t('highlightsTitle')}</h2>
+                    <ul>
+                      {/* ข้อความอิสระที่แอดมินพิมพ์เอง ซ้ำกันได้ จึงยึดลำดับเป็น key */}
+                      {highlights.map((item, index) => (
+                        <li key={index}>
+                          <Check size={16} strokeWidth={2} aria-hidden />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </aside>
             )}
           </div>
         </div>
@@ -206,7 +222,7 @@ export default async function ServiceDetailPage({
       )}
 
       {service.packages.length > 0 && (
-        <Section eyebrow={t('packagesTitle')} title={t('packagesTitle')} subtitle={t('packagesSubtitle')}>
+        <Section id="packages" eyebrow={t('packagesEyebrow')} title={t('packagesTitle')} subtitle={t('packagesSubtitle')}>
           <ul className="reveal-stagger grid gap-6 lg:grid-cols-3">
             {service.packages.map((pkg) => {
               const price = formatPrice(pkg.priceFrom, locale)
@@ -225,7 +241,8 @@ export default async function ServiceDetailPage({
                     {pkg.isPopular && <Badge variant="accent">{t('popular')}</Badge>}
                   </div>
 
-                  <p className="mt-4">
+                  {/* สูงเท่ากันทุกใบ หัวข้อสิ่งที่ได้รับจึงตรงแนวกันแม้บางแพ็กเกจไม่มีตัวเลขราคา */}
+                  <p className="mt-4 flex min-h-12 flex-wrap items-baseline">
                     {price ? (
                       <>
                         {pkg.isStartingPrice && (
@@ -234,14 +251,14 @@ export default async function ServiceDetailPage({
                           </span>
                         )}
                         <span className="tabular font-display text-4xl">{price}</span>
-                        {priceUnitLabel[pkg.priceUnit] && (
+                        {priceUnitLabel(pkg.priceUnit) && (
                           <span className="ml-1.5 text-sm text-muted-foreground">
-                            {priceUnitLabel[pkg.priceUnit]}
+                            {priceUnitLabel(pkg.priceUnit)}
                           </span>
                         )}
                       </>
                     ) : (
-                      <span className="font-display text-2xl">{tc('customPrice')}</span>
+                      <span className="text-lg font-medium text-muted-foreground">{tc('customPrice')}</span>
                     )}
                   </p>
 
@@ -288,18 +305,18 @@ export default async function ServiceDetailPage({
         </Section>
       )}
 
-      {faq.length > 0 && (
-        <Section tone="subtle" title={t('faqTitle')} align="center">
-          <div className="mx-auto max-w-3xl">
-            <Faq items={faq} />
-          </div>
-        </Section>
-      )}
-
+      {/* ผลงานจริงมาก่อนคำถาม คนที่เพิ่งเห็นราคาอยากเห็นว่างานระดับนั้นหน้าตาเป็นอย่างไร */}
       {relatedProjects.length > 0 && (
         <Section
+          tone="subtle"
           eyebrow={tCat(service.category)}
           title={t('relatedWorkTitle')}
+          action={
+            <Link href={`/work?category=${service.category}`} className="text-link">
+              {tc('viewAll')}
+              <ArrowUpRight size={17} aria-hidden />
+            </Link>
+          }
         >
           <div className="reveal-stagger grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {relatedProjects.slice(0, 3).map((project) => (
@@ -309,9 +326,21 @@ export default async function ServiceDetailPage({
         </Section>
       )}
 
+      {faq.length > 0 && (
+        <section className="py-20 md:py-28">
+          <div className="container faq-split">
+            <div>
+              <p className="section-eyebrow">FAQ</p>
+              <h2 className="mt-3 font-display text-display-sm text-balance">{t('faqTitle')}</h2>
+            </div>
+            <Faq items={faq} />
+          </div>
+        </section>
+      )}
+
       <Section
         tone="subtle"
-        eyebrow={t('ctaTitle')}
+        eyebrow={t('ctaEyebrow')}
         title={t('ctaTitle')}
         subtitle={t('ctaSubtitle')}
         align="center"

@@ -1,4 +1,4 @@
-import { Clock, Mail, MapPin, MessageCircle, Phone } from 'lucide-react'
+import { ArrowUpRight, Clock, Mail, MapPin, MessageCircle, Phone } from 'lucide-react'
 import type { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { localizedPath, type Locale } from '@/i18n/routing'
@@ -118,21 +118,39 @@ export default async function ContactPage({
    */
   const lineHref = safeExternalUrl(social.line)
 
+  const address = isThai ? company.addressTh : company.addressEn
   const details = [
-    company.email && { icon: Mail, value: company.email, href: `mailto:${company.email}` },
+    company.email && { icon: Mail, label: t('labelEmail'), value: company.email, href: `mailto:${company.email}` },
     company.phone && {
       icon: Phone,
+      label: t('labelPhone'),
       value: company.phone,
       href: `tel:${company.phone.replace(/\s/g, '')}`,
     },
     (company.lineId || lineHref) && {
       icon: MessageCircle,
+      label: t('labelLine'),
       value: company.lineId || lineHref,
       href: lineHref,
       note: lineHref ? undefined : t('lineIdNote'),
     },
-    { icon: MapPin, value: isThai ? company.addressTh : company.addressEn, href: null },
-  ].filter(Boolean) as { icon: typeof Mail; value: string; href: string | null; note?: string }[]
+    // ที่อยู่เปิดในแผนที่ได้ในคลิกเดียว คนที่จะมาสตูดิโอไม่ต้องคัดลอกไปวางเอง
+    address && {
+      icon: MapPin,
+      label: t('labelAddress'),
+      value: address,
+      href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
+      note: t('openMap'),
+      external: true,
+    },
+  ].filter(Boolean) as {
+    icon: typeof Mail
+    label: string
+    value: string
+    href: string | null
+    note?: string
+    external?: boolean
+  }[]
 
   return (
     <>
@@ -160,10 +178,8 @@ export default async function ContactPage({
     <section className="py-16 md:py-24">
       <div className="container">
         {/* stage ไล่จังหวะให้หัวเรื่องทีละชิ้นเหมือนหน้าแรก หน้านี้คือหน้าที่ลูกค้าตัดสินใจ */}
-        <div className="stage max-w-2xl">
-          <p className="rule-draw mb-4 text-xs font-medium uppercase tracking-[0.18em] text-accent">
-            {t('eyebrow')}
-          </p>
+        <div className="stage max-w-3xl">
+          <p className="section-eyebrow mb-4">{t('eyebrow')}</p>
           <h1 className="sweep font-display text-display-lg text-balance">{t('title')}</h1>
           <p className="mt-5 text-lg leading-relaxed text-muted-foreground text-pretty">
             {t('subtitle')}
@@ -177,7 +193,7 @@ export default async function ContactPage({
           */}
           <div
             id="lead-form"
-            className="scroll-mt-24 rounded-lg border border-border bg-surface p-7 md:p-9"
+            className="scroll-mt-24 rounded-2xl border border-border bg-surface p-7 shadow-[0_30px_60px_-45px_hsl(var(--shadow-color)/0.45)] md:p-10"
           >
             <h2 className="mb-7 font-display text-2xl">{rental ? t('rentalFormTitle') : t('formTitle')}</h2>
             <LeadForm
@@ -188,51 +204,50 @@ export default async function ContactPage({
             />
           </div>
 
-          <aside className="space-y-10">
-            <div>
-              <h2 className="mb-5 text-sm font-medium">{t('directTitle')}</h2>
-              <ul className="space-y-4">
-                {details.map(({ icon: Icon, value, href, note }) => (
-                  <li key={value} className="flex gap-3">
-                    <Icon
-                      size={17}
-                      strokeWidth={1.75}
-                      aria-hidden
-                      className="mt-0.5 shrink-0 text-accent"
-                    />
+          <aside className="contact-aside">
+            <h2 className="contact-aside-title">{t('directTitle')}</h2>
+            <ul className="contact-channels">
+              {details.map(({ icon: Icon, label, value, href, note, external }) => {
+                const inner = (
+                  <>
+                    <span className="contact-channel-icon">
+                      <Icon size={18} strokeWidth={1.75} aria-hidden />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="contact-channel-label">{label}</span>
+                      <span className="contact-channel-value">{value}</span>
+                      {note && <span className="contact-channel-note">{note}</span>}
+                    </span>
+                    {href && <ArrowUpRight size={17} aria-hidden className="contact-channel-arrow" />}
+                  </>
+                )
+                return (
+                  <li key={label}>
                     {href ? (
                       <a
                         href={href}
-                        className="text-sm text-muted-foreground transition-colors hover:text-accent"
+                        className="contact-channel"
+                        {...(external ? { target: '_blank', rel: 'noreferrer noopener' } : {})}
                       >
-                        {value}
+                        {inner}
                       </a>
                     ) : (
-                      <span className="text-sm text-muted-foreground text-pretty">
-                        {value}
-                        {note && (
-                          <span className="mt-0.5 block text-xs text-muted-foreground/80">
-                            {note}
-                          </span>
-                        )}
-                      </span>
+                      <div className="contact-channel">{inner}</div>
                     )}
                   </li>
-                ))}
-              </ul>
+                )
+              })}
+            </ul>
+
+            <div className="contact-hours">
+              <Clock size={18} strokeWidth={1.75} aria-hidden />
+              <div>
+                <h2>{t('hoursTitle')}</h2>
+                <p>{isThai ? company.openingHoursTh : company.openingHoursEn}</p>
+              </div>
             </div>
 
-            <div>
-              <h2 className="mb-4 text-sm font-medium">{t('hoursTitle')}</h2>
-              <p className="flex gap-3 text-sm text-muted-foreground">
-                <Clock size={17} strokeWidth={1.75} aria-hidden className="mt-0.5 shrink-0 text-accent" />
-                {isThai ? company.openingHoursTh : company.openingHoursEn}
-              </p>
-            </div>
-
-            <p className="rounded-md border border-border bg-subtle p-4 text-sm text-muted-foreground text-pretty">
-              {t('responseNote')}
-            </p>
+            <p className="contact-promise">{t('responseNote')}</p>
           </aside>
         </div>
       </div>

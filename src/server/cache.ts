@@ -13,7 +13,7 @@ import { packForCache, unpackFromCache } from '@/lib/cache-serialization'
  * error ไม่ถูกเก็บลงแคช ฐานข้อมูลสะดุดครั้งเดียวจึงไม่ค้างเป็นหน้าเสียไปทั้งชั่วโมง
  */
 
-export type CacheTag = 'services' | 'projects' | 'equipment' | 'reviews' | 'posts' | 'team' | 'settings'
+export type CacheTag = 'services' | 'projects' | 'equipment' | 'products' | 'reviews' | 'posts' | 'team' | 'settings'
 
 export function cachedQuery<Args extends unknown[], Result>(
   key: string,

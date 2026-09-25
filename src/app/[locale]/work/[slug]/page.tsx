@@ -1,4 +1,4 @@
-import { ExternalLink, Github } from 'lucide-react'
+import { ArrowUpRight, ExternalLink, Github } from 'lucide-react'
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
@@ -111,6 +111,7 @@ export default async function ProjectDetailPage({
   const isVisualWork = project.category === 'PHOTOGRAPHY' || project.category === 'STUDIO'
   const isSoftwareWork =
     project.category === 'WEB' || project.category === 'WEB_APP' || project.category === 'MOBILE_APP'
+  const liveHost = liveUrl ? new URL(liveUrl).hostname.replace(/^www\./, '') : undefined
 
   /**
    * ภาพที่ยังไม่ได้กรอกคำอธิบาย ใช้คำบรรยายภาพ ถ้าไม่มีอีกใช้ชื่องานกับลำดับภาพ
@@ -244,8 +245,33 @@ export default async function ProjectDetailPage({
             title={title}
             playLabel={t('watchVideo')}
           />
+        ) : isSoftwareWork && project.coverImage ? (
+          /*
+            งานเว็บและแอปวางภาพหน้าจอในกรอบหน้าต่างเบราว์เซอร์แบบเดียวกับหน้าแรก
+            ชี้ที่ภาพแล้วหน้าจอค่อย ๆ เลื่อนลง เหมือนกำลังไล่ดูเว็บนั้นอยู่
+          */
+          <div className="case-window">
+            <div className="case-bar" aria-hidden>
+              <i />
+              <i />
+              <i />
+              {liveHost && <span>{liveHost}</span>}
+            </div>
+            <div className="case-screen">
+              <Image
+                src={project.coverImage}
+                alt=""
+                fill
+                priority
+                sizes="(min-width: 1360px) 1300px, 100vw"
+                placeholder={project.coverBlurData ? 'blur' : 'empty'}
+                blurDataURL={project.coverBlurData ?? undefined}
+                className="object-cover object-top"
+              />
+            </div>
+          </div>
         ) : (
-          <div className="relative aspect-[16/9] overflow-hidden rounded-lg border border-border bg-subtle">
+          <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border border-border bg-subtle">
             {/* ผลงานเก่าบางชิ้นอาจไม่มีรูปปก — next/image กับ src ว่างจะโยน error ทั้งหน้า */}
             {project.coverImage && (
             <Image
@@ -277,7 +303,7 @@ export default async function ProjectDetailPage({
               )}
             </div>
 
-            <aside className="space-y-10 lg:pt-2">
+            <aside className="space-y-10 lg:sticky lg:top-24 lg:self-start lg:pt-2">
               {isSoftwareWork && project.techStack.length > 0 && (
                 <div>
                   <h2 className="mb-4 text-sm font-medium">{t('techStack')}</h2>
@@ -306,13 +332,14 @@ export default async function ProjectDetailPage({
               )}
 
               {project.service && (
-                <div>
-                  <h2 className="mb-3 text-sm font-medium">{tCat(project.category)}</h2>
-                  <Link
-                    href={`/services/${project.service.slug}`}
-                    className="text-sm text-accent underline underline-offset-4 hover:no-underline"
-                  >
+                <div className="work-service">
+                  <h2>{t('serviceLabel')}</h2>
+                  <Link href={`/services/${project.service.slug}`} className="work-service-link">
                     {isThai ? project.service.titleTh : project.service.titleEn}
+                    <ArrowUpRight size={18} aria-hidden />
+                  </Link>
+                  <Link href="/contact" className={buttonClasses('accent', 'md', 'mt-4 w-full')}>
+                    {t('serviceCta')}
                   </Link>
                 </div>
               )}

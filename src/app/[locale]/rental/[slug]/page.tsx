@@ -149,8 +149,9 @@ export default async function EquipmentDetailPage({
           />
 
           <div className="mt-10 grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-14">
-            <div>
-              <div className="relative aspect-[4/3] overflow-hidden rounded-lg border border-border bg-subtle">
+            {/* รูปค้างอยู่ด้านซ้ายขณะอ่านสเปกด้านขวา ไม่ต้องเลื่อนกลับขึ้นไปดูว่ากำลังอ่านของชิ้นไหน */}
+            <div className="lg:sticky lg:top-24 lg:self-start">
+              <div className="product-tile relative aspect-[4/3] overflow-hidden rounded-2xl border border-border">
                 {images[0] && (
                   <Image
                     src={images[0]}
@@ -158,7 +159,7 @@ export default async function EquipmentDetailPage({
                     fill
                     priority
                     sizes="(min-width: 1024px) 55vw, 100vw"
-                    className="object-cover"
+                    className="object-contain p-4 sm:p-6"
                   />
                 )}
                 <span
@@ -180,21 +181,21 @@ export default async function EquipmentDetailPage({
               */}
               {images.length > 1 && (
                 <>
-                  <h2 className="mb-3 mt-8 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  <h2 className="mb-3 mt-8 text-[0.8125rem] font-medium uppercase tracking-wider text-muted-foreground">
                     {t('gallery')}
                   </h2>
                   <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {images.slice(1).map((url, index) => (
                       <li
                         key={`${url}-${index}`}
-                        className="relative aspect-[4/3] overflow-hidden rounded-md border border-border bg-subtle"
+                        className="product-tile relative aspect-[4/3] overflow-hidden rounded-xl border border-border"
                       >
                         <Image
                           src={url}
                           alt=""
                           fill
                           sizes="(min-width: 640px) 18rem, 45vw"
-                          className="object-cover"
+                          className="object-contain p-3"
                         />
                       </li>
                     ))}
@@ -205,7 +206,7 @@ export default async function EquipmentDetailPage({
 
             <div>
               {brand && (
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">{brand}</p>
+                <p className="text-[0.8125rem] uppercase tracking-wider text-muted-foreground">{brand}</p>
               )}
               <h1 className="mt-2 font-display text-4xl text-balance md:text-5xl">{item.model}</h1>
               <p className="mt-3 text-lg text-muted-foreground text-pretty">{localName}</p>
@@ -237,7 +238,7 @@ export default async function EquipmentDetailPage({
                 </dl>
               )}
 
-              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{t('priceNote')}</p>
+              <p className="mt-3 text-[0.8125rem] leading-relaxed text-muted-foreground">{t('priceNote')}</p>
 
               {!isAvailable && (
                 <p className="mt-4 flex items-start gap-2 rounded-md border border-border bg-subtle px-3.5 py-3 text-sm text-muted-foreground">
@@ -266,7 +267,7 @@ export default async function EquipmentDetailPage({
 
               {specs.length > 0 && (
                 <>
-                  <h2 className="mb-2.5 mt-8 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  <h2 className="mb-2.5 mt-8 text-[0.8125rem] font-medium uppercase tracking-wider text-muted-foreground">
                     {t('specs')}
                   </h2>
                   <dl className="divide-y divide-border rounded-md border border-border">
@@ -325,14 +326,14 @@ export default async function EquipmentDetailPage({
                     href={`/rental/${other.slug}`}
                     className="group flex h-full flex-col overflow-hidden rounded-lg border border-border bg-surface transition-colors hover:border-foreground/20"
                   >
-                    <div className="relative aspect-[4/3] bg-subtle">
+                    <div className="product-tile relative aspect-[4/3]">
                       {other.image && (
                         <Image
                           src={other.image}
                           alt=""
                           fill
                           sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                          className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                          className="object-contain p-6 transition-transform duration-500 ease-out group-hover:scale-[1.04]"
                         />
                       )}
                     </div>

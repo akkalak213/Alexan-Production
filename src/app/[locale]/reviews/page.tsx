@@ -1,10 +1,11 @@
-import { MessageSquareQuote, Users } from 'lucide-react'
+import { MessageSquareQuote, PenLine } from 'lucide-react'
 import type { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { localizedPath, type Locale } from '@/i18n/routing'
 import { pageMetadata } from '@/lib/seo'
 import { ReviewCard } from '@/components/reviews/ReviewCard'
 import { ReviewForm } from '@/components/reviews/ReviewForm'
+import { buttonClasses } from '@/components/ui/Button'
 import { RatingStars } from '@/components/ui/RatingStars'
 import { Section } from '@/components/ui/Section'
 import { JsonLd } from '@/components/JsonLd'
@@ -97,41 +98,46 @@ export default async function ReviewsPage({ params }: { params: Promise<{ locale
         ])}
       />
 
-      <Section headingLevel="h1" eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')}>
+      <Section
+        headingLevel="h1"
+        eyebrow={t('eyebrow')}
+        title={t('title')}
+        subtitle={t('subtitle')}
+        action={
+          <a href="#write" className={buttonClasses('outline', 'md')}>
+            <PenLine size={16} strokeWidth={1.75} aria-hidden />
+            {t('writeReview')}
+          </a>
+        }
+      >
+        {/* สรุปคะแนนเป็นแถบเดียว อ่านจากซ้ายไปขวา: คะแนนเฉลี่ย จำนวนรีวิว แล้วค่อยการกระจาย */}
         {stats.total > 0 && (
-          <div className="mb-14 grid gap-6 md:grid-cols-3">
-            <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-surface p-8">
-              <p className="tabular font-display text-6xl">{stats.average.toFixed(1)}</p>
-              <RatingStars
-                rating={stats.average}
-                size={18}
-                className="mt-3"
-                label={t('starsOf', { rating: stats.average.toFixed(1) })}
-              />
-              <p className="mt-3 text-xs text-muted-foreground">{t('averageRating')}</p>
+          <div className="review-summary">
+            <div className="review-summary-score">
+              <p className="tabular font-display">{stats.average.toFixed(1)}</p>
+              <div>
+                <RatingStars
+                  rating={stats.average}
+                  size={18}
+                  label={t('starsOf', { rating: stats.average.toFixed(1) })}
+                />
+                <p>{t('averageRating')}</p>
+              </div>
             </div>
-
-            <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-surface p-8">
-              <span className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent-subtle text-accent">
-                <Users size={22} strokeWidth={1.6} aria-hidden />
-              </span>
-              <p className="tabular font-display text-4xl">{formatNumber(stats.total, locale)}</p>
-              <p className="mt-2 text-xs text-muted-foreground">{t('totalReviews')}</p>
+            <div className="review-summary-count">
+              <p className="tabular font-display">{formatNumber(stats.total, locale)}</p>
+              <p>{t('totalReviews')}</p>
             </div>
-
-            <div className="rounded-lg border border-border bg-surface p-8">
-              <p className="mb-4 text-xs text-muted-foreground">{t('distribution')}</p>
-              <ul className="space-y-2.5">
+            <div className="review-summary-bars">
+              <p>{t('distribution')}</p>
+              <ul>
                 {stats.distribution.map((row) => (
-                  <li key={row.star} className="flex items-center gap-3 text-xs">
-                    <span className="tabular w-3 font-medium">{row.star}</span>
-                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <span
-                        className="block h-full rounded-full bg-accent"
-                        style={{ width: `${row.percent}%` }}
-                      />
+                  <li key={row.star}>
+                    <span className="tabular">{row.star}</span>
+                    <span className="review-summary-track">
+                      <span style={{ width: `${row.percent}%` }} />
                     </span>
-                    <span className="tabular w-6 text-right text-muted-foreground">{row.count}</span>
+                    <span className="tabular">{row.count}</span>
                   </li>
                 ))}
               </ul>

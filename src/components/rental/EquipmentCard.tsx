@@ -48,14 +48,18 @@ export function EquipmentCard({ item, isSelected, onToggle }: Props) {
         isSelected ? 'border-accent' : 'border-border hover:border-foreground/20',
       )}
     >
-      <div className="relative aspect-[4/3] overflow-hidden bg-subtle">
+      {/*
+        รูปสินค้าวางบนพื้นสีกระดาษแบบไม่ตัดขอบ (contain) ทั้งตัวกล้องและขาตั้งจึงเห็นครบทุกชิ้น
+        รูปส่วนใหญ่ถ่ายบนพื้นขาว multiply ทำให้พื้นขาวกลืนไปกับพื้นกล่อง ไม่เห็นเป็นสี่เหลี่ยมขาวซ้อนอยู่
+      */}
+      <div className="equipment-card-image relative aspect-[4/3] overflow-hidden">
         {item.image && (
           <Image
             src={item.image}
             alt=""
             fill
             sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-            className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+            className="object-contain"
           />
         )}
         {!isAvailable && (
@@ -67,7 +71,7 @@ export function EquipmentCard({ item, isSelected, onToggle }: Props) {
 
       <div className="flex flex-1 flex-col p-5">
         {equipmentBrand(item.brand) && (
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+          <p className="text-[0.8125rem] uppercase tracking-wider text-muted-foreground">
             {equipmentBrand(item.brand)}
           </p>
         )}
@@ -76,7 +80,7 @@ export function EquipmentCard({ item, isSelected, onToggle }: Props) {
         </h3>
 
         {item.specs.length > 0 && (
-          <dl className="mt-4 space-y-1.5 text-xs">
+          <dl className="mt-4 space-y-1.5 text-[0.8125rem] leading-relaxed">
             {item.specs.slice(0, 3).map((spec, index) => (
               <div key={index} className="flex justify-between gap-3">
                 <dt className="text-muted-foreground">{spec.label}</dt>
@@ -90,7 +94,7 @@ export function EquipmentCard({ item, isSelected, onToggle }: Props) {
           ป้ายบอกว่าการ์ดกดได้ แสดงตลอดเวลาไม่ใช่เฉพาะตอนเอาเมาส์ชี้
           เพราะบนมือถือไม่มีสถานะ hover ให้เห็น ลูกค้าจึงไม่รู้เลยว่ากดเข้าไปดูต่อได้
         */}
-        <p className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-accent">
+        <p className="mb-5 mt-4 inline-flex items-center gap-1 text-[0.8125rem] font-medium text-accent">
           {t('viewDetails')}
           <ArrowRight
             size={13}
@@ -100,18 +104,19 @@ export function EquipmentCard({ item, isSelected, onToggle }: Props) {
           />
         </p>
 
-        <div className="mt-5 flex items-end justify-between gap-3 border-t border-border pt-4">
+        {/* mt-auto ดันแถวราคาลงไปชิดขอบล่างทุกใบ การ์ดที่สเปกน้อยจึงไม่มีช่องว่างค้างอยู่ใต้ราคา */}
+        <div className="mt-auto flex items-end justify-between gap-3 border-t border-border pt-4">
           <div>
             {item.dailyRateLabel ? (
               <p className="tabular font-display text-xl">
                 {item.dailyRateLabel}
-                <span className="ml-1 font-sans text-xs text-muted-foreground">{t('perDay')}</span>
+                <span className="ml-1 font-sans text-[0.8125rem] text-muted-foreground">{t('perDay')}</span>
               </p>
             ) : (
               <p className="text-sm text-muted-foreground">—</p>
             )}
             {item.depositLabel && (
-              <p className="tabular mt-0.5 text-xs text-muted-foreground">
+              <p className="tabular mt-0.5 text-[0.8125rem] text-muted-foreground">
                 {t('deposit')} {item.depositLabel}
               </p>
             )}
@@ -123,7 +128,7 @@ export function EquipmentCard({ item, isSelected, onToggle }: Props) {
             onClick={() => onToggle(item.id)}
             aria-pressed={isSelected}
             className={cn(
-              'relative z-10 inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors',
+              'relative z-10 inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg px-3.5 text-[0.8125rem] font-medium transition-colors',
               isSelected
                 ? 'bg-accent text-accent-foreground'
                 : 'border border-input text-foreground hover:border-foreground/25 hover:bg-muted',

@@ -4,6 +4,7 @@ import { clientEnv } from '@/lib/env'
 import {
   getEquipmentSlugs,
   getPostSlugs,
+  getProductSlugs,
   getProjectSlugs,
   getServiceSlugs,
 } from '@/server/queries'
@@ -44,18 +45,31 @@ function withAlternates(
   }))
 }
 
+/**
+ * อ่านไม่สำเร็จก็คืนรายการว่างของหมวดนั้น ไม่ให้ทั้ง sitemap ล้มเป็น 500
+ *
+ * เจอจริงตอนเพิ่มหมวดผลิตภัณฑ์: ตารางยังไม่ถูกสร้างบนฐานข้อมูลจริง
+ * หมวดเดียวที่อ่านไม่ได้ทำให้ Google ไม่ได้ URL ของหน้าอื่นอีกสิบกว่าหน้าไปด้วย
+ * ความผิดพลาดยังถูก log จาก query เอง (ดู safe ใน server/queries.ts)
+ */
+function orEmpty<T>(rows: Promise<T[]>): Promise<T[]> {
+  return rows.catch(() => [])
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [services, projects, posts, equipment] = await Promise.all([
-    getServiceSlugs(),
-    getProjectSlugs(),
-    getPostSlugs(),
-    getEquipmentSlugs(),
+  const [services, projects, posts, equipment, products] = await Promise.all([
+    orEmpty(getServiceSlugs()),
+    orEmpty(getProjectSlugs()),
+    orEmpty(getPostSlugs()),
+    orEmpty(getEquipmentSlugs()),
+    orEmpty(getProductSlugs()),
   ])
 
   return [
     ...withAlternates('', { changeFrequency: 'weekly', priority: 1 }),
     ...withAlternates('/services', { changeFrequency: 'monthly', priority: 0.9 }),
     ...withAlternates('/work', { changeFrequency: 'weekly', priority: 0.9 }),
+    ...withAlternates('/products', { changeFrequency: 'weekly', priority: 0.8 }),
     ...withAlternates('/rental', { changeFrequency: 'weekly', priority: 0.8 }),
     ...withAlternates('/reviews', { changeFrequency: 'weekly', priority: 0.7 }),
     ...withAlternates('/blog', { changeFrequency: 'weekly', priority: 0.7 }),
@@ -85,6 +99,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.8,
         lastModified: e.updatedAt,
       }),
+    ),
+    // หน้าผลิตภัณฑ์ตรงกับคำค้นที่ตั้งใจจะซื้อ ("โปรแกรม <ชื่อ> ราคา") น้ำหนักเท่าหน้าอุปกรณ์
+    ...products.flatMap((p) =>
+      withAlternates(`/products/${p.slug}`, { priority: 0.8, lastModified: p.updatedAt }),
     ),
   ]
 }

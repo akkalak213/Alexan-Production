@@ -1,6 +1,6 @@
 'use client'
 
-import { Check } from 'lucide-react'
+import { Check, Plus } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useActionState, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ServiceCategory } from '@/generated/prisma/enums'
@@ -25,8 +25,20 @@ import { usePackageSelection, type SelectedPackage } from '@/components/services
 
 const categories = Object.values(ServiceCategory)
 
+/**
+ * ผลิตภัณฑ์จากหน้า /products — ชื่อกับราคาแปลงเป็นข้อความมาจากฝั่งเซิร์ฟเวอร์แล้ว
+ * ฟอร์มส่งกลับไปแค่ id ฝั่ง server action อ่านชื่อกับราคาจากฐานข้อมูลอีกรอบ แก้จากเบราว์เซอร์ไม่ได้
+ */
+export type SelectedProduct = {
+  id: string
+  name: string
+  planId: string | null
+  planName: string | null
+  priceTag: string | null
+}
+
 type Props = {
-  source?: 'CONTACT' | 'QUOTE' | 'RENTAL' | 'SERVICE_PAGE'
+  source?: 'CONTACT' | 'QUOTE' | 'RENTAL' | 'SERVICE_PAGE' | 'PRODUCT'
   /** ติ๊กบริการไว้ล่วงหน้าเมื่อมาจากหน้าบริการใดบริการหนึ่ง */
   defaultService?: ServiceCategory
   /**
@@ -40,6 +52,7 @@ type Props = {
    * ทำให้ใช้งานได้โดยไม่ต้องพึ่ง JavaScript ฝั่งหน้าบริการเลย
    */
   initialPackage?: SelectedPackage | null
+  product?: SelectedProduct | null
 }
 
 type Draft = {
@@ -58,6 +71,7 @@ export function LeadForm({
   rental,
   showServicePicker = true,
   initialPackage = null,
+  product = null,
 }: Props) {
   const t = useTranslations('forms')
   const tCat = useTranslations('serviceCategory')
@@ -81,6 +95,9 @@ export function LeadForm({
   const [state, formAction, isPending] = useActionState(submitLead, initialActionState)
 
   const isRental = Boolean(rental?.items.length)
+  // คำขอผลิตภัณฑ์ไม่บังคับพิมพ์ข้อความ ชื่อผลิตภัณฑ์กับแพ็กเกจบอกเจตนาครบแล้ว (เหมือนคำขอเช่า)
+  const isProduct = Boolean(product)
+  const messageOptional = isRental || isProduct
   const isThai = locale === 'th'
   const days = parseRentalDays(draft.rentalDays)
 
@@ -185,6 +202,22 @@ export function LeadForm({
       {rental?.items.map((item) => (
         <input key={item.id} type="hidden" name="equipmentIds" value={item.id} />
       ))}
+
+      {product && (
+        <>
+          <input type="hidden" name="productId" value={product.id} />
+          {product.planId && <input type="hidden" name="productPlanId" value={product.planId} />}
+          <div className="rounded-md border border-accent/40 bg-accent-subtle p-4">
+            <p className="text-xs font-medium uppercase tracking-wider text-accent">{t('selectedProduct')}</p>
+            <p className="mt-1.5 font-medium">
+              {[product.name, product.planName].filter(Boolean).join(' · ')}
+            </p>
+            {product.priceTag && (
+              <p className="tabular mt-0.5 text-sm text-muted-foreground">{product.priceTag}</p>
+            )}
+          </div>
+        </>
+      )}
 
       {/*
         แพ็กเกจที่กดเลือกมาจากด้านบนของหน้า
@@ -351,13 +384,14 @@ export function LeadForm({
       </div>
 
       {/* คำขอเช่าไม่ถามบริการกับงบประมาณ อุปกรณ์และจำนวนวันบอกราคาได้ชัดกว่าช่วงงบอยู่แล้ว */}
-      {showServicePicker && !isRental && (
+      {showServicePicker && !isRental && !isProduct && (
         <fieldset>
           <legend className="mb-2.5 text-sm font-medium">{t('servicesInterested')}</legend>
           <div className="flex flex-wrap gap-2">
             {categories.map((category) => (
               // ชิปทั้งใบเป็นพื้นที่กดได้ ไม่ใช่แค่ช่องติ๊กเล็ก ๆ
-              // เพิ่มเครื่องหมายถูกตอนเลือกเพื่อให้เห็นชัดว่ากดได้และกดไปแล้ว
+              // เครื่องหมายบวกบอกว่ากดเพิ่มได้ กดแล้วเปลี่ยนเป็นเครื่องหมายถูก ชิปกว้างเท่าเดิมทั้งสองสถานะ
+              // (เดิมเว้นที่ว่างไว้ให้เครื่องหมายถูกที่มองไม่เห็น ข้อความในชิปที่ยังไม่เลือกจึงดูเยื้องไปทางขวา)
               <label
                 key={category}
                 className={cn(
@@ -375,12 +409,8 @@ export function LeadForm({
                   onChange={(event) => setChosenServices(event.target.checked ? [...chosenServices, category] : chosenServices.filter((value) => value !== category))}
                   className="peer sr-only"
                 />
-                <Check
-                  size={14}
-                  strokeWidth={2.5}
-                  aria-hidden
-                  className="opacity-0 transition-opacity peer-checked:opacity-100"
-                />
+                <Plus size={14} strokeWidth={2} aria-hidden className="peer-checked:hidden" />
+                <Check size={14} strokeWidth={2.5} aria-hidden className="hidden peer-checked:block" />
                 {tCat(category)}
               </label>
             ))}
@@ -388,7 +418,7 @@ export function LeadForm({
         </fieldset>
       )}
 
-      {!isRental && (
+      {!isRental && !isProduct && (
         <Field htmlFor={fieldId('budgetRange')} label={t('budget')}>
           <Select
             id={fieldId('budgetRange')}
@@ -408,10 +438,10 @@ export function LeadForm({
 
       <Field
         htmlFor={fieldId('message')}
-        label={isRental ? t('rentalMessage') : t('message')}
-        hint={isRental ? undefined : t('messageHint')}
-        required={!isRental}
-        optionalLabel={isRental ? t('optional') : undefined}
+        label={isRental ? t('rentalMessage') : isProduct ? t('productMessage') : t('message')}
+        hint={messageOptional ? undefined : t('messageHint')}
+        required={!messageOptional}
+        optionalLabel={messageOptional ? t('optional') : undefined}
         error={fieldError('message')}
       >
         <Textarea
@@ -419,12 +449,18 @@ export function LeadForm({
           name="message"
           value={draft.message}
           onChange={setField('message')}
-          required={!isRental}
-          minLength={isRental ? undefined : 10}
+          required={!messageOptional}
+          minLength={messageOptional ? undefined : 10}
           maxLength={3000}
-          placeholder={isRental ? t('rentalMessagePlaceholder') : t('messagePlaceholder')}
+          placeholder={
+            isRental
+              ? t('rentalMessagePlaceholder')
+              : isProduct
+                ? t('productMessagePlaceholder')
+                : t('messagePlaceholder')
+          }
           aria-invalid={Boolean(fieldError('message'))}
-          className={isRental ? 'min-h-24' : undefined}
+          className={messageOptional ? 'min-h-24' : undefined}
         />
       </Field>
 

@@ -216,6 +216,8 @@ export const getLeadById = cache((id: string) =>
       package: {
         select: { id: true, service: { select: { id: true, titleTh: true } } },
       },
+      // ผลิตภัณฑ์ที่ลูกค้าสนใจ ชื่อกับราคาตอนกดอยู่ใน packageName/packagePriceTag แล้ว ตรงนี้ใช้ทำลิงก์กลับ
+      product: { select: { id: true, slug: true } },
     },
   }),
 )
@@ -276,6 +278,20 @@ export const getAdminEquipmentList = cache(() =>
 
 export const getAdminEquipmentItem = cache((id: string) =>
   db.equipment.findUnique({ where: { id } }),
+)
+
+export const getAdminProducts = cache(() =>
+  db.product.findMany({
+    orderBy: [{ status: 'asc' }, { order: 'asc' }, { createdAt: 'desc' }],
+    include: { plans: { select: { price: true, billing: true } }, _count: { select: { leads: true } } },
+  }),
+)
+
+export const getAdminProduct = cache((id: string) =>
+  db.product.findUnique({
+    where: { id },
+    include: { plans: { orderBy: { order: 'asc' } } },
+  }),
 )
 
 export const getAdminServices = cache(() =>
@@ -382,6 +398,8 @@ export const getLeadForQuote = cache((id: string) =>
           equipment: { select: { dailyRate: true, weeklyRate: true, depositAmount: true } },
         },
       },
+      product: { select: { nameTh: true, nameEn: true, type: true } },
+      productPlan: { select: { nameTh: true, nameEn: true, price: true, billing: true } },
     },
   }),
 )

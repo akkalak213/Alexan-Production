@@ -10,6 +10,7 @@ import {
   rentalQuoteNotes,
   rentalQuoteTerms,
 } from '@/lib/rental-quote'
+import { productQuoteLine } from '@/lib/product-pricing'
 import { rentalEstimateTotals } from '@/lib/rental-pricing'
 import { getAdminSettings, getLeadForQuote } from '@/server/admin-queries'
 import { defaultValidUntil } from '@/server/cms-helpers'
@@ -61,7 +62,16 @@ export default async function NewQuotePage({
             priceUnit: lead.package.priceUnit,
           }),
         ]
-      : []
+      : lead?.product
+        ? [
+            productQuoteLine({
+              locale,
+              productName: isEnglish ? lead.product.nameEn : lead.product.nameTh,
+              planName: lead.productPlan ? (isEnglish ? lead.productPlan.nameEn : lead.productPlan.nameTh) : null,
+              plan: lead.productPlan,
+            }),
+          ]
+        : []
 
   const deposit = rentalEstimateTotals({
     amounts: [],
@@ -87,8 +97,12 @@ export default async function NewQuotePage({
       ? String(quoteDefaults.termsEn ?? quoteDefaults.termsTh ?? '')
       : String(quoteDefaults.termsTh ?? '')
 
+  // ซื้อสินค้าที่จับต้องได้ไม่ใช่ค่าบริการหรือค่าสิทธิ์ ผู้ซื้อไม่ต้องหัก ณ ที่จ่าย
+  const isGoods = lead?.product?.type === 'PHYSICAL'
   const withholdingRate = lead
-    ? defaultWithholdingRate({ isRental, hasCompany: Boolean(lead.company), serviceRate: serviceWithholding })
+    ? isGoods
+      ? 0
+      : defaultWithholdingRate({ isRental, hasCompany: Boolean(lead.company), serviceRate: serviceWithholding })
     : serviceWithholding
 
   // สิ่งที่ระบบเดาแทนให้ ต้องบอกให้เห็นก่อนบันทึก ไม่ใช่ปล่อยให้ไปรู้ทีหลังจากลูกค้า
@@ -99,6 +113,9 @@ export default async function NewQuotePage({
       !lead.company &&
       'ลูกค้าไม่ได้กรอกชื่อบริษัท หัก ณ ที่จ่ายจึงตั้งไว้ 0% (บุคคลธรรมดาไม่ต้องหัก)',
     lead?.company && isRental && 'ลูกค้ามีบริษัท หัก ณ ที่จ่ายค่าเช่าตั้งไว้ 5%',
+    lead?.product && !lead.productPlan && 'ลูกค้าไม่ได้เลือกแพ็กเกจ ต้องใส่ราคาเอง',
+    isGoods && 'สินค้าที่จับต้องได้ หัก ณ ที่จ่ายตั้งไว้ 0% ตรวจกับฝ่ายบัญชีถ้ามีค่าติดตั้งหรือบริการรวมอยู่',
+    lead?.product && !isGoods && lead.company && 'ผลิตภัณฑ์ใช้อัตราหัก ณ ที่จ่ายของงานบริการ ตรวจกับฝ่ายบัญชีว่าเข้าเกณฑ์ค่าสิทธิ์หรือไม่',
   ].filter(Boolean) as string[]
 
   return (
@@ -107,7 +124,7 @@ export default async function NewQuotePage({
         title="สร้างใบเสนอราคา"
         description={
           lead
-            ? `ดึงข้อมูลลูกค้า${isRental ? ' อุปกรณ์ และเรตค่าเช่า' : lead.package ? ' และแพ็กเกจ' : ''}จากคำขอ ${lead.refCode} มาให้แล้ว ตรวจก่อนบันทึก`
+            ? `ดึงข้อมูลลูกค้า${isRental ? ' อุปกรณ์ และเรตค่าเช่า' : lead.package ? ' และแพ็กเกจ' : lead.product ? ' และผลิตภัณฑ์' : ''}จากคำขอ ${lead.refCode} มาให้แล้ว ตรวจก่อนบันทึก`
             : 'เลขที่เอกสารจะถูกออกให้อัตโนมัติเมื่อกดบันทึก'
         }
       />

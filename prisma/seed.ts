@@ -357,7 +357,7 @@ const services = [
       'Commercials, corporate documentaries, social content, and event coverage. Scripting, shooting, editing, colour grading, and sound — delivered in the aspect ratio each platform actually needs.',
     highlightsTh: [
       'เขียนบทและวาง storyboard',
-      'ถ่ายด้วยกล้องระดับซีเนม่า',
+      'ถ่ายด้วยกล้องระดับซีเนมา',
       'ปรับสีและมิกซ์เสียงมืออาชีพ',
       'ส่งไฟล์ทั้งแนวนอนและแนวตั้ง',
     ],
@@ -411,7 +411,7 @@ const services = [
         nameTh: 'งานโฆษณา',
         nameEn: 'Commercial',
         priceUnit: PriceUnit.CUSTOM,
-        includesTh: ['ทีมงานเต็มรูปแบบ', 'นักแสดงและสถานที่', 'อุปกรณ์ระดับซีเนม่า', 'ประเมินราคาตามบท'],
+        includesTh: ['ทีมงานเต็มรูปแบบ', 'นักแสดงและสถานที่', 'อุปกรณ์ระดับซีเนมา', 'ประเมินราคาตามบท'],
         includesEn: ['Full crew', 'Talent and locations', 'Cinema equipment package', 'Quoted from the script'],
         order: 3,
       },
@@ -442,7 +442,7 @@ const services = [
       'High-speed internet and parking',
     ],
     processTh: [
-      { title: 'เช็ควันว่าง', detail: 'ทักมาบอกวันและเวลาที่ต้องการ เราตอบกลับภายในวันเดียวกัน' },
+      { title: 'เช็กวันว่าง', detail: 'ทักมาบอกวันและเวลาที่ต้องการ เราตอบกลับภายในวันเดียวกัน' },
       { title: 'ยืนยันการจอง', detail: 'มัดจำ 50% เพื่อล็อกคิว ที่เหลือชำระวันใช้งาน' },
       { title: 'วันใช้งาน', detail: 'เข้าใช้ได้ตามเวลาที่จอง มีทีมงานคอยช่วยเรื่องไฟและอุปกรณ์' },
     ],
@@ -653,7 +653,7 @@ async function seedProjects(authorId: string | null) {
 }
 
 const equipment = [
-  { slug: 'sony-fx3', category: EquipmentCategory.CAMERA, brand: 'Sony', model: 'FX3', nameTh: 'กล้องซีเนม่า Sony FX3', nameEn: 'Sony FX3 Cinema Camera', dailyRate: 3500, depositAmount: 20000, specs: [{ label: 'เซนเซอร์', value: 'Full-frame 10.2MP' }, { label: 'ความละเอียด', value: '4K 120fps' }, { label: 'ISO', value: 'Dual Base 800 / 12800' }, { label: 'เมาท์', value: 'Sony E' }], isFeatured: true },
+  { slug: 'sony-fx3', category: EquipmentCategory.CAMERA, brand: 'Sony', model: 'FX3', nameTh: 'กล้องซีเนมา Sony FX3', nameEn: 'Sony FX3 Cinema Camera', dailyRate: 3500, depositAmount: 20000, specs: [{ label: 'เซนเซอร์', value: 'Full-frame 10.2MP' }, { label: 'ความละเอียด', value: '4K 120fps' }, { label: 'ISO', value: 'Dual Base 800 / 12800' }, { label: 'เมาท์', value: 'Sony E' }], isFeatured: true },
   { slug: 'sony-a7iv', category: EquipmentCategory.CAMERA, brand: 'Sony', model: 'A7 IV', nameTh: 'กล้อง Sony A7 IV', nameEn: 'Sony A7 IV', dailyRate: 2000, depositAmount: 15000, specs: [{ label: 'เซนเซอร์', value: 'Full-frame 33MP' }, { label: 'วิดีโอ', value: '4K 60fps' }, { label: 'เมาท์', value: 'Sony E' }] },
   { slug: 'canon-r5', category: EquipmentCategory.CAMERA, brand: 'Canon', model: 'EOS R5', nameTh: 'กล้อง Canon EOS R5', nameEn: 'Canon EOS R5', dailyRate: 2500, depositAmount: 18000, specs: [{ label: 'เซนเซอร์', value: 'Full-frame 45MP' }, { label: 'วิดีโอ', value: '8K RAW' }, { label: 'เมาท์', value: 'Canon RF' }], isFeatured: true },
   { slug: 'sony-24-70-gm2', category: EquipmentCategory.LENS, brand: 'Sony', model: 'FE 24-70mm f/2.8 GM II', nameTh: 'เลนส์ซูม 24-70mm f/2.8', nameEn: '24-70mm f/2.8 Zoom Lens', dailyRate: 1200, depositAmount: 10000, specs: [{ label: 'ช่วงเลนส์', value: '24-70mm' }, { label: 'รูรับแสง', value: 'f/2.8 คงที่' }, { label: 'เมาท์', value: 'Sony E' }] },

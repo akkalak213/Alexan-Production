@@ -21,11 +21,20 @@
 .public-site .site-header { border-bottom: 1px solid hsl(var(--border)); }
 .public-site .section-eyebrow {
   display: flex; align-items: center; gap: .65rem;
-  color: hsl(var(--accent)); font-size: .8125rem; font-weight: 500; letter-spacing: .08em;
+  color: hsl(var(--accent)); font-size: .8125rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
 }
+.public-site .section-eyebrow:lang(th) { letter-spacing: .03em; }
 .public-site .section-eyebrow::before {
   content: ''; width: 1.25rem; height: 2px; border-radius: 2px; background: currentColor;
 }
+/*
+ * หัวเรื่องขนาดใหญ่ของภาษาไทย: globals.css ตั้ง h1-h3 ไว้ 1.5 ซึ่งพอดีกับหัวข้อขนาดปกติ
+ * แต่ที่ 60-80px บรรทัดห่างกันเกือบเท่าความสูงตัวอักษร หัวเรื่องสองบรรทัดดูเป็นสองก้อน
+ * 1.36 ยังเหลือที่ให้วรรณยุกต์กับสระล่างไม่ชนกัน
+ */
+.public-site :is(.text-display-sm, .text-display-md, .text-display-lg, .text-display-xl):lang(th) { line-height: 1.36; }
+/* หัวข้อส่วนย่อยทุกหน้าขนาดเดียวกับหน้าแรก หัวเรื่องหลักของหน้า (h1) ยังใหญ่กว่า */
+.public-site .section-header h2.text-display-md { font-size: clamp(2rem, 1.3rem + 2.4vw, 3.25rem); }
 .text-link {
   display: inline-flex; align-items: center; gap: .5rem; min-height: 44px;
   font-size: .9375rem; font-weight: 500; transition: color .2s;
@@ -72,23 +81,73 @@
 .hero-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 2rem; }
 .hero-reassurance { display: flex; align-items: center; gap: .5rem; margin-top: 1rem; color: hsl(var(--muted-foreground)); font-size: .875rem; }
 .hero-reassurance svg { flex-shrink: 0; color: hsl(var(--accent)); }
-.home-hero .studio-stage { position: relative; margin-top: 1.5rem; overflow: hidden; }
+/*
+ * ตัดขอบแนวนอนอย่างเดียว (ฉากบนมือถือกว้างกว่าจอ) แต่ปล่อยแนวตั้ง
+ * รูปที่ถ่ายได้ลอยขึ้นไปเหนือฉากได้ ส่วนเกินที่เหลือ .home-hero ตัดให้เอง
+ */
+.home-hero .studio-stage { position: relative; margin-top: 1.5rem; overflow-x: clip; }
 /*
  * มือถือ: ฉากกว้างกว่าจอหลายเท่า ถ้าย่อทั้งฉากให้พอดีจอ ทุกอย่างจะเล็กจนดูไม่ออก
- * จึงวางฉากกว้าง 740px แล้วเลื่อนให้กึ่งกลางจอตรงกับจุด x=603 ของฉาก (41.875% ของความกว้างฉาก)
- * กรอบจอจึงครอบช่วงช่างภาพ กล้อง ไฟคีย์ ถึงโต๊ะสินค้าเสมอ ไม่ว่าจอกว้างเท่าไหร่
- * ซึ่งเป็นช่วงที่เล่าเรื่องครบ: คนกดชัตเตอร์ แฟลชยิงไปที่ของบนโต๊ะ
+ * จึงวางฉากกว้าง 740px แล้วเลื่อนให้กึ่งกลางจอตรงกับจุด x=570 ของฉาก (39.583% ของความกว้างฉาก)
+ * กรอบจอจึงครอบตั้งแต่จอมอนิเตอร์ ช่างภาพ ไฟคีย์ ถึงโต๊ะสินค้าทั้งตัวเสมอ ไม่ว่าจอกว้างเท่าไหร่
+ * ซึ่งเป็นช่วงที่เล่าเรื่องครบ: คนกดชัตเตอร์ แฟลชยิงไปที่ของบนโต๊ะ ภาพขึ้นจอ
+ *
+ * ความสูงคิดจากสัดส่วนฉาก 1440 × 344 (รวมแถบพื้นเงาใต้เส้นพื้น) ที่ความกว้างนั้น ๆ
+ * perspective อยู่ที่กรอบนี้ .studio-world ข้างในจึงเอียงแบบสามมิติได้
  */
-.home-hero .studio-scene { display: block; width: 740px; max-width: none; height: 164px; margin-left: 50%; translate: -41.875% 0; }
+.home-hero .studio-scene { position: relative; display: block; width: 740px; max-width: none; height: 177px; margin-left: 50%; translate: -39.583% 0; perspective: 1600px; }
 @media (min-width: 640px) {
-  .home-hero .studio-scene { width: 100%; height: 250px; margin-left: 0; translate: none; }
+  .home-hero .studio-scene { width: 100%; height: 268px; margin-left: 0; translate: none; }
 }
 @media (min-width: 1024px) {
   .hero-inner { padding-top: 4.5rem; }
   /* ฉากดันขึ้นไปใต้ข้อความเล็กน้อย ไฟบูมกับซอฟต์บ็อกซ์จึงยืนอยู่ในห้องเดียวกับหัวเรื่อง */
   .home-hero .studio-stage { margin-top: -2.5rem; }
   /* สูงตามสัดส่วนของฉาก จอกว้างมากจะไม่ถูกตัดหัวไฟ และหยุดขยายที่ 1600px */
-  .home-hero .studio-scene { max-width: 1600px; height: auto; aspect-ratio: 1440 / 320; margin-inline: auto; }
+  .home-hero .studio-scene { max-width: 1600px; height: auto; aspect-ratio: 1440 / 344; margin-inline: auto; }
+}
+
+/*
+ * แผ่นความลึกซ้อนกันพอดีทุกแผ่น (viewBox เดียวกัน) studio-motion.ts เลื่อนแต่ละแผ่นคนละระยะ
+ * จุดหมุนของทั้งฉากอยู่ต่ำ ใกล้เส้นพื้น เอียงแล้วจึงเหมือนมองโต๊ะถ่ายจากมุมที่ต่างไปเล็กน้อย
+ */
+.studio-world { position: absolute; inset: 0; transform-origin: 50% 85%; }
+.studio-layer { position: absolute; inset: 0; width: 100%; height: 100%; }
+/*
+ * ลำแสงเบลอด้วย CSS ทั้งแผ่น ไม่ใช่ feGaussianBlur ใน SVG
+ * การ์ดจอเบลอแผ่นที่แยกเป็นชั้นให้ตอนประกอบภาพ ความสว่างของลำแสงเปลี่ยนได้ทุกเฟรมโดยไม่ต้องเบลอใหม่ด้วย CPU
+ * รัศมีตามขนาดที่ฉากแสดงจริง: เท่ากับเบลอ 8 หน่วยของ viewBox ที่แต่ละช่วงจอ
+ */
+.studio-beams { filter: blur(4px); }
+@media (min-width: 640px) { .studio-beams { filter: blur(6px); } }
+@media (min-width: 1024px) { .studio-beams { filter: blur(7px); } }
+
+/* ตัวเลขบนกรอบโฟกัสเล็กเกินอ่านบนมือถือ เหลือแค่กรอบ */
+@media (max-width: 639px) { .studio-scene .hud-text { display: none; } }
+
+/*
+ * รูปที่ถ่ายได้ — กระดาษฟิล์มอินสแตนต์สีงาช้าง ขอบล่างหนากว่าตามแบบฟิล์มจริง
+ * อยู่ใต้ชั้นข้อความของส่วนเปิดหน้า (z-index ของ .hero-inner สูงกว่า) ถ้าลอยไปโดนก็ไม่บังหัวเรื่อง
+ */
+.studio-shot {
+  position: absolute; left: 0; top: 0; width: 108px; padding: 5px 5px 0;
+  border-radius: 3px; background: hsl(40 33% 94%); color: hsl(240 8% 16%);
+  box-shadow: 0 18px 40px -12px hsl(240 20% 2% / .7), 0 2px 6px hsl(240 20% 2% / .35);
+  visibility: hidden; opacity: 0; pointer-events: none; will-change: transform;
+}
+.studio-shot-photo { position: relative; overflow: hidden; aspect-ratio: 176 / 97; border-radius: 1px; background: hsl(240 8% 8%); }
+.studio-shot-photo svg { display: block; width: 100%; height: 100%; }
+.studio-shot-develop { position: absolute; inset: 0; background: hsl(40 30% 97%); opacity: 0; }
+.studio-shot-meta {
+  display: flex; flex-direction: column; gap: 1px; padding: 5px 1px 7px;
+  font-family: var(--font-mono), ui-monospace, monospace; font-size: 7px; line-height: 1.3; letter-spacing: .02em;
+  white-space: nowrap;
+}
+.studio-shot-meta span:first-child { font-weight: 600; }
+.studio-shot-meta span:last-child { color: hsl(240 6% 40%); }
+@media (min-width: 640px) {
+  .studio-shot { width: 144px; padding: 7px 7px 0; }
+  .studio-shot-meta { padding: 7px 1px 10px; font-size: 8.5px; }
 }
 
 .studio-stage-controls { position: absolute; inset: auto 0 1rem; display: flex; justify-content: flex-end; pointer-events: none; }
@@ -99,18 +158,12 @@
 }
 .studio-motion-toggle:hover { color: hsl(var(--foreground)); border-color: hsl(var(--muted-foreground)); }
 /*
- * แสงแฟลชมองไม่เห็นจนกว่าคีย์เฟรมจะยิง
- * เดิมค่าโปร่งใสนี้อยู่ในบล็อก no-preference คนที่ปิดแอนิเมชันไว้จึงเห็นแฟลชสว่างค้างถาวร
+ * ของที่มองไม่เห็นจนกว่าจะถ่ายภาพ: แสงแฟลช แสงที่ตกบนสินค้า กรอบโฟกัส
+ * ซ่อนด้วย CSS ไม่ใช่สคริปต์ คนที่ปิดแอนิเมชันหรือ JavaScript ไม่มาจึงไม่เห็นแฟลชสว่างค้าง
  */
-.studio-scene :is(.flash-pop, .flash-room) { opacity: 0; }
-.studio-stage[data-motion='paused'] .studio-scene * { animation-play-state: paused; }
+.studio-scene :is(.flash-pop, .flash-room, .flash-spill, .flash-rim, .hud) { opacity: 0; }
 /* หยุดตรงจังหวะที่แฟลชกำลังสว่างจะกลายเป็นจอสว่างค้าง ซ่อนแสงแฟลชไว้ระหว่างหยุด */
-.studio-stage[data-motion='paused'] .studio-scene :is(.flash-pop, .flash-room) { visibility: hidden; }
-/*
- * ลำแสงกับโคมอยู่ในกลุ่มที่มีฟิลเตอร์เบลอ ค่าโปร่งใสที่ขยับทุกเฟรมบังคับให้เบราว์เซอร์คำนวณเบลอใหม่ทุกเฟรม
- * จังหวะหายใจยาว 7–13 วินาที จึงแบ่งเป็นขั้นเล็ก ๆ ได้โดยตาแยกไม่ออก เหลือวาดใหม่ราว 6 ครั้งต่อวินาทีแทน 60
- */
-.studio-scene :is(.beam, .lamp) { animation-timing-function: steps(40, jump-none); }
+.studio-stage[data-motion='paused'] .studio-scene :is(.flash-pop, .flash-room, .flash-spill, .flash-rim) { visibility: hidden; }
 
 /* ───────────── บริการ: รายการราคา ───────────── */
 .services-layout { display: grid; gap: 2.75rem; }
@@ -140,6 +193,8 @@
   grid-area: price; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 .35rem;
   color: hsl(var(--muted-foreground)); font-size: .8125rem;
 }
+/* <small> มีขนาด 80% ติดมาจาก preflight ทำให้คำว่าเริ่มต้นเหลือ 10px */
+.service-row-price small { font-size: inherit; }
 .service-row-price b { color: hsl(var(--foreground)); font-size: 1.0625rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .service-row-arrow { grid-area: arrow; color: hsl(var(--muted-foreground)); transition: transform .3s var(--editorial-ease), color .2s; }
 .service-row:hover .service-row-arrow { color: hsl(var(--accent)); transform: translate(3px, -3px); }
@@ -363,29 +418,303 @@
   .contact-band-action > a { width: 100%; }
 }
 
-/* ───────────── การ์ดที่ใช้ร่วมกับหน้าอื่น ───────────── */
-.service-grid { display: grid; gap: 1rem; }
-.service-grid.reveal-stagger > * { animation: none; opacity: 1; transform: none; }
-.service-tile {
-  display: flex; flex-direction: column; height: 100%; padding: 1.5rem;
-  border: 1px solid hsl(var(--border)); border-radius: var(--editorial-radius); background: hsl(var(--surface));
-  transition: border-color .25s, box-shadow .3s, transform .3s var(--editorial-ease);
+/* ───────────── หัวหน้ารวม: ข้อความประกอบด้านขวาของหัวเรื่อง ───────────── */
+.page-hero-note {
+  max-width: 19rem; padding-left: 1.1rem; border-left: 2px solid hsl(var(--accent));
+  color: hsl(var(--muted-foreground)); font-size: .9375rem; line-height: 1.75; text-wrap: pretty;
 }
-.service-tile-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.1rem; color: hsl(var(--accent)); }
-.service-tile-top > svg { order: -1; padding: 9px; box-sizing: content-box; border-radius: .75rem; background: hsl(var(--accent-subtle)); }
-.service-number { color: hsl(var(--muted-foreground)); font: 500 .75rem/1 var(--mono); }
-.service-tile > h2, .service-tile > h3 { font-size: 1.375rem; }
-.service-tile > p { flex: 1; margin-top: .5rem; margin-bottom: 1.1rem; color: hsl(var(--muted-foreground)); font-size: .9375rem; line-height: 1.75; }
-.service-tile-link {
-  display: flex; align-items: center; justify-content: space-between; padding-top: .85rem;
-  border-top: 1px solid hsl(var(--border)); font-size: .875rem; font-weight: 500;
-}
-.service-tile-link svg { color: hsl(var(--accent)); transition: transform .25s var(--editorial-ease); }
-.service-tile:hover { border-color: hsl(var(--accent) / .55); box-shadow: 0 10px 28px -16px hsl(var(--shadow-color) / .3); }
-.service-tile:hover .service-tile-link svg { transform: translate(3px, -3px); }
-@media (min-width: 640px) { .service-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 1024px) { .service-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
+/* ───────────── หน้ารวมบริการ: สารบัญพร้อมราคา ───────────── */
+.svc-index { display: grid; gap: 3.5rem; }
+.svc-group-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+  padding-bottom: 1rem; border-bottom: 1px solid hsl(var(--foreground) / .85);
+}
+.svc-group-head h2 { font-size: 1.0625rem; font-weight: 600; }
+.svc-group-head span { color: hsl(var(--muted-foreground)); font-size: .875rem; }
+.svc-entry {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'no arrow' 'main main' 'price price';
+  gap: .5rem 1rem; padding: 1.6rem 0; border-bottom: 1px solid hsl(var(--border));
+}
+.svc-entry-no { grid-area: no; color: hsl(var(--accent)); font: 500 .875rem/1.6 var(--mono); }
+.svc-entry-main { grid-area: main; min-width: 0; }
+.svc-entry-title { font-size: clamp(1.625rem, 1.2rem + 1.4vw, 2.375rem); line-height: 1.2; transition: color .25s, translate .45s var(--editorial-ease); }
+.svc-entry-title:lang(th) { line-height: 1.42; }
+.svc-entry-tagline { max-width: 38rem; margin-top: .35rem; color: hsl(var(--muted-foreground)); font-size: 1rem; line-height: 1.75; text-wrap: pretty; }
+.svc-entry-points { display: flex; flex-wrap: wrap; gap: .45rem 1.25rem; max-width: 40rem; margin-top: .9rem; }
+.svc-entry-points li { display: flex; align-items: center; gap: .4rem; color: hsl(var(--foreground) / .8); font-size: .875rem; line-height: 1.5; }
+.svc-entry-points svg { flex-shrink: 0; color: hsl(var(--accent)); }
+.svc-entry-price {
+  grid-area: price; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 .4rem; margin-top: .4rem;
+  color: hsl(var(--muted-foreground)); font-size: .875rem;
+}
+.svc-entry-price > * { line-height: 1.45; }
+.svc-entry-price small { font-size: inherit; }
+.svc-entry-price b { color: hsl(var(--foreground)); font-size: 1.375rem; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.svc-entry-arrow {
+  grid-area: arrow; display: grid; place-items: center; width: 2.75rem; height: 2.75rem;
+  border: 1px solid hsl(var(--border)); border-radius: 50%; color: hsl(var(--foreground));
+  transition: background .3s, border-color .3s, color .3s;
+}
+.svc-entry-arrow svg { transition: transform .35s var(--editorial-ease); }
+.svc-entry:hover .svc-entry-title { color: hsl(var(--accent)); }
+.svc-entry:hover .svc-entry-arrow { border-color: hsl(var(--accent)); background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); }
+.svc-entry:hover .svc-entry-arrow svg { transform: rotate(45deg); }
+.svc-entry-peek { display: none; }
+@media (min-width: 768px) {
+  .svc-entry {
+    grid-template-columns: 3.5rem minmax(0, 1fr) minmax(10rem, auto) auto; grid-template-areas: 'no main price arrow';
+    align-items: start; column-gap: 1.75rem; padding-block: 2rem;
+  }
+  .svc-entry-no { padding-top: .75rem; }
+  .svc-entry-price { flex-direction: column; align-items: flex-end; gap: .1rem; margin-top: .35rem; text-align: right; line-height: 1.45; }
+  .svc-entry-arrow { margin-top: .2rem; }
+}
+/*
+ * ภาพตัวอย่างลอยขึ้นมาข้างชื่อบริการตอนชี้ เฉพาะจอที่มีเมาส์
+ * วางทับช่องว่างระหว่างข้อความกับราคา เอียงเล็กน้อยเหมือนรูปที่วางไว้บนโต๊ะ ไม่บังตัวเลขราคา
+ */
+@media (hover: hover) and (min-width: 1280px) {
+  .svc-entry:hover .svc-entry-title { translate: .4rem 0; }
+  .svc-entry-peek {
+    position: absolute; z-index: 2; top: 50%; right: 17rem; display: block; width: 15rem; aspect-ratio: 4 / 3; overflow: hidden;
+    border-radius: .9rem; background: hsl(var(--subtle)); pointer-events: none;
+    box-shadow: 0 30px 60px -28px hsl(var(--shadow-color) / .55), 0 0 0 1px hsl(var(--border));
+    opacity: 0; transform: translateY(-46%) rotate(-4deg) scale(.86);
+    transition: opacity .3s, transform .55s var(--editorial-ease);
+  }
+  .svc-entry:hover .svc-entry-peek { opacity: 1; transform: translateY(-50%) rotate(-2deg) scale(1); }
+}
+
+/* ───────────── หน้ารายละเอียดบริการ ───────────── */
+.svc-hero { display: grid; gap: 2.5rem; margin-top: 2.25rem; }
+.svc-hero-copy { min-width: 0; }
+.svc-hero-kicker { display: flex; align-items: center; gap: .7rem; margin-bottom: 1.1rem; color: hsl(var(--accent)); font-size: .9375rem; font-weight: 500; }
+.svc-hero-kicker span {
+  display: grid; place-items: center; width: 2.5rem; height: 2.5rem;
+  border: 1px solid hsl(var(--accent) / .3); border-radius: .75rem; background: hsl(var(--accent-subtle));
+}
+.svc-hero-tagline { max-width: 40rem; margin-top: 1rem; font-size: 1.1875rem; line-height: 1.7; text-wrap: pretty; }
+.svc-hero-description { max-width: 40rem; margin-top: 1rem; color: hsl(var(--muted-foreground)); font-size: 1rem; line-height: 1.85; text-wrap: pretty; }
+.svc-hero-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 2rem; }
+@media (max-width: 639px) { .svc-hero-actions > * { width: 100%; } }
+.svc-glance {
+  position: relative; overflow: hidden; align-self: start; padding: 1.75rem;
+  border: 1px solid hsl(var(--border)); border-radius: 1.25rem; background: hsl(var(--surface));
+  box-shadow: 0 1px 2px hsl(var(--shadow-color) / .05), 0 30px 60px -40px hsl(var(--shadow-color) / .35);
+}
+/* เส้นทองแดงบาง ๆ ด้านบนของการ์ด ให้การ์ดสรุปดูเป็นเอกสารที่ตั้งใจทำ ไม่ใช่กล่องเทา */
+.svc-glance::before { content: ''; position: absolute; inset: 0 0 auto; height: 3px; background: hsl(var(--accent)); }
+.svc-glance-price {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 .5rem; padding-bottom: 1.4rem; margin-bottom: 1.4rem;
+  border-bottom: 1px solid hsl(var(--border)); color: hsl(var(--muted-foreground)); font-size: .9375rem;
+}
+.svc-glance-price small { font-size: inherit; }
+.svc-glance-price b {
+  color: hsl(var(--foreground)); font-family: var(--stack-display); font-size: 2.5rem; font-weight: 600;
+  line-height: 1.2; letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+}
+.svc-glance h2 { margin-bottom: 1rem; font-size: .9375rem; font-weight: 600; }
+.svc-glance ul { display: grid; gap: .8rem; }
+.svc-glance li { display: flex; gap: .7rem; font-size: .9375rem; line-height: 1.65; }
+.svc-glance li svg { flex-shrink: 0; margin-top: .3rem; color: hsl(var(--accent)); }
+@media (min-width: 1024px) {
+  .svc-hero { grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); gap: 5rem; margin-top: 3rem; }
+  .svc-glance { position: sticky; top: 6.5rem; padding: 2rem; }
+}
+
+/* คำถามที่พบบ่อยแบบสองคอลัมน์: หัวข้อซ้าย คำถามขวา อ่านต่อเนื่องได้ไม่ต้องกวาดสายตากลับไปกลางจอ */
+.faq-split { display: grid; gap: 2rem; }
+@media (min-width: 1024px) { .faq-split { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 4rem; } }
+
+/*
+ * เนื้อหาบทความ: ตัวอักษรใหญ่กว่าเนื้อความทั่วไปเล็กน้อยและเข้มกว่าข้อความประกอบ
+ * เดิมเป็นสีจางทั้งย่อหน้า อ่านยาวแล้วเหนื่อยตา ระยะบรรทัดไทยเผื่อสระบนล่างให้หายใจได้
+ */
+.prose-body { color: hsl(var(--foreground) / .82); font-size: 1.0625rem; line-height: 1.8; }
+.prose-body:lang(th), .prose-body :lang(th) { line-height: 1.9; }
+.prose-body :is(h2, h3), .prose-body :is(h2, h3):lang(th) { color: hsl(var(--foreground)); line-height: 1.45; }
+
+/* ───────────── หน้าบทความ ───────────── */
+.post-header { max-width: 60rem; margin-top: 2rem; }
+/* หัวเรื่องบทความยาวกว่าหัวเรื่องหน้าอื่นมาก ขนาดจึงเล็กกว่า h1 ปกติ ชื่อบทความยาวไม่หักเป็นสี่บรรทัด */
+.post-title { font-size: clamp(2.125rem, 1.4rem + 2.8vw, 3.75rem); line-height: 1.12; letter-spacing: -.015em; }
+.post-title:lang(th) { line-height: 1.38; letter-spacing: 0; }
+.post-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.5rem; margin-top: 1.75rem; padding-top: 1.25rem;
+  border-top: 1px solid hsl(var(--border)); color: hsl(var(--muted-foreground)); font-size: .875rem;
+}
+.post-layout { display: grid; gap: 3rem; margin-top: 3.5rem; }
+.post-body { min-width: 0; max-width: 44rem; }
+.post-aside { display: none; }
+@media (min-width: 1024px) {
+  .post-layout { grid-template-columns: minmax(0, 1fr) 19rem; gap: 5rem; margin-top: 4.5rem; }
+  .post-aside { position: sticky; top: 6.5rem; display: grid; gap: 1.5rem; align-self: start; }
+}
+.post-toc > p { margin-bottom: .75rem; font-size: .875rem; font-weight: 600; }
+.post-toc ol { display: grid; gap: .1rem; border-left: 1px solid hsl(var(--border)); counter-reset: toc; }
+.post-toc li { counter-increment: toc; }
+.post-toc a {
+  display: flex; gap: .6rem; margin-left: -1px; padding: .4rem 0 .4rem .9rem; border-left: 2px solid transparent;
+  color: hsl(var(--muted-foreground)); font-size: .875rem; line-height: 1.55; transition: color .2s, border-color .2s;
+}
+.post-toc a::before { content: counter(toc, decimal-leading-zero); flex-shrink: 0; color: hsl(var(--accent) / .8); font: 500 .75rem/1.9 var(--mono); }
+.post-toc a:hover { border-color: hsl(var(--accent)); color: hsl(var(--foreground)); }
+.post-cta {
+  display: grid; gap: .6rem; padding: 1.4rem; border: 1px solid hsl(var(--border)); border-radius: 1rem; background: hsl(var(--subtle));
+}
+.post-cta > p { font-size: 1.1875rem; line-height: 1.4; }
+.post-cta > span { margin-bottom: .5rem; color: hsl(var(--muted-foreground)); font-size: .875rem; line-height: 1.7; }
+.post-related { display: block; }
+
+/* เรื่องเด่นบนหน้ารวมบทความ */
+.post-feature-link {
+  display: grid; overflow: hidden; border: 1px solid hsl(var(--border)); border-radius: 1.25rem; background: hsl(var(--surface));
+  transition: border-color .25s, box-shadow .3s;
+}
+.post-feature-link:hover { border-color: hsl(var(--accent) / .4); box-shadow: 0 30px 60px -45px hsl(var(--shadow-color) / .5); }
+.post-feature-image { position: relative; display: block; aspect-ratio: 16 / 10; overflow: hidden; background: hsl(var(--subtle)); }
+.post-feature-copy { display: flex; flex-direction: column; justify-content: center; gap: .9rem; padding: 1.75rem; }
+.post-feature-copy h2 { font-size: clamp(1.625rem, 1.2rem + 1.5vw, 2.375rem); line-height: 1.25; transition: color .25s; }
+.post-feature-copy h2:lang(th) { line-height: 1.45; }
+.post-feature-copy p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; color: hsl(var(--muted-foreground)); font-size: 1rem; line-height: 1.8; }
+.post-feature-more { display: inline-flex; align-items: center; gap: .4rem; margin-top: .4rem; color: hsl(var(--accent)); font-size: .9375rem; font-weight: 500; }
+.post-feature-more svg { transition: transform .25s var(--editorial-ease); }
+.post-feature-link:hover h2 { color: hsl(var(--accent)); }
+.post-feature-link:hover .post-feature-more svg { transform: translate(2px, -2px); }
+@media (min-width: 1024px) {
+  .post-feature-link { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+  .post-feature-image { aspect-ratio: auto; min-height: 26rem; }
+  .post-feature-copy { padding: 3rem; }
+}
+
+/*
+ * แถบความคืบหน้าการอ่านบนสุดของจอ ผูกกับการเลื่อนของทั้งหน้าด้วย CSS ไม่มีสคริปต์
+ * เบราว์เซอร์ที่ยังไม่รองรับ animation-timeline จะไม่เห็นแถบเลย ไม่ใช่เห็นแถบค้าง
+ */
+.reading-progress { display: none; }
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reading-progress {
+      position: fixed; inset: 0 0 auto; z-index: 60; display: block; height: 3px;
+      background: hsl(var(--accent)); transform-origin: 0 50%;
+      animation: reading-progress linear both; animation-timeline: scroll(root);
+    }
+  }
+}
+@keyframes reading-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* ───────────── สรุปคะแนนรีวิว ───────────── */
+.review-summary {
+  display: grid; gap: 1.5rem; margin-bottom: 3rem; padding: 1.5rem;
+  border: 1px solid hsl(var(--border)); border-radius: 1.25rem; background: hsl(var(--surface));
+}
+.review-summary-score { display: flex; align-items: center; gap: 1.1rem; }
+.review-summary-score > p { font-size: 4rem; line-height: 1; letter-spacing: -.03em; }
+.review-summary-score div p, .review-summary-count p:last-child, .review-summary-bars > p {
+  margin-top: .35rem; color: hsl(var(--muted-foreground)); font-size: .875rem;
+}
+.review-summary-count > p:first-child { font-size: 2.5rem; line-height: 1.1; }
+.review-summary-bars > p { margin: 0 0 .6rem; }
+.review-summary-bars ul { display: grid; gap: .45rem; }
+.review-summary-bars li { display: grid; grid-template-columns: 1rem minmax(0, 1fr) 1.5rem; align-items: center; gap: .75rem; font-size: .8125rem; line-height: 1.4; }
+.review-summary-bars li > :last-child { color: hsl(var(--muted-foreground)); text-align: right; }
+.review-summary-track { height: 6px; overflow: hidden; border-radius: 999px; background: hsl(var(--muted)); }
+.review-summary-track span { display: block; height: 100%; border-radius: inherit; background: hsl(var(--accent)); }
+@media (min-width: 768px) {
+  .review-summary { grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 0; padding: 1.75rem 2rem; }
+  .review-summary > * + * { align-self: stretch; margin-left: 2.5rem; padding-left: 2.5rem; border-left: 1px solid hsl(var(--border)); }
+  .review-summary-count { display: flex; flex-direction: column; justify-content: center; }
+}
+
+/* ───────────── หน้าเกี่ยวกับเรา ───────────── */
+.about-hero { padding-block: 4rem; }
+.about-hero-grid { display: grid; gap: 3rem; align-items: center; }
+/* สามช่องเท่ากันแถวเดียวทุกขนาดจอ เดิมตัดขึ้นบรรทัดใหม่บนมือถือแล้วเหลือเส้นคั่นลอยอยู่ข้างช่องเดียว */
+.about-stats { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; max-width: 34rem; margin-top: 2.5rem; }
+.about-stats > div { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: .25rem; padding-inline: 1rem; border-left: 1px solid hsl(var(--border)); }
+.about-stats > div:first-child { padding-left: 0; border-left: 0; }
+.about-stats dt { color: hsl(var(--muted-foreground)); font-size: .8125rem; line-height: 1.5; }
+.about-stats dd { font-size: clamp(1.75rem, 1.35rem + 1.6vw, 2.5rem); line-height: 1.1; letter-spacing: -.02em; }
+@media (min-width: 640px) { .about-stats > div { padding-inline: 1.5rem; } .about-stats dt { font-size: .875rem; } }
+.about-stats dd small { margin-left: .15rem; color: hsl(var(--muted-foreground)); font-size: 1.125rem; letter-spacing: 0; }
+/*
+ * ภาพสามใบวางซ้อนเหลื่อมกันแบบภาพพิมพ์ที่วางบนโต๊ะ ใบใหญ่ด้านหลัง ใบเล็กสองใบยื่นออกมาด้านหน้า
+ * มือถือเป็นแถวสามช่องเท่ากัน ไม่ซ้อนกันเพราะจอแคบ
+ */
+.about-collage { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; }
+.about-collage > span { position: relative; display: block; aspect-ratio: 3 / 4; overflow: hidden; border-radius: .9rem; background: hsl(var(--subtle)); }
+.about-collage img { object-position: 50% 30%; }
+@media (min-width: 1024px) {
+  .about-hero { padding-block: 5rem 6rem; }
+  .about-hero-grid { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 5rem; }
+  .about-collage { position: relative; display: block; aspect-ratio: 5 / 5.4; }
+  .about-collage > span { position: absolute; box-shadow: 0 30px 60px -35px hsl(var(--shadow-color) / .55); }
+  .about-collage > span:nth-child(1) { inset: 0 18% 14% 0; aspect-ratio: auto; border-radius: 1.25rem; }
+  .about-collage > span:nth-child(2) { top: 8%; right: 0; width: 38%; aspect-ratio: 4 / 5; border: 5px solid hsl(var(--background)); rotate: 3deg; }
+  .about-collage > span:nth-child(3) { bottom: 0; left: 30%; width: 40%; aspect-ratio: 5 / 4; border: 5px solid hsl(var(--background)); rotate: -2.5deg; }
+}
+
+.about-story { display: grid; gap: 1.5rem 4rem; }
+.about-story > div { display: grid; gap: 1.25rem; max-width: 44rem; color: hsl(var(--muted-foreground)); font-size: 1.0625rem; line-height: 1.9; }
+/* ย่อหน้าแรกเป็นบทนำ ตัวใหญ่และเข้มกว่า คนที่อ่านแค่ย่อหน้าเดียวก็ได้ใจความ */
+.about-story > div > p:first-child { color: hsl(var(--foreground)); font-size: clamp(1.1875rem, 1.05rem + .5vw, 1.4375rem); line-height: 1.75; }
+@media (min-width: 1024px) { .about-story { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); } }
+
+.about-gear { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+@media (min-width: 768px) { .about-gear { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.25rem; } }
+
+/* ───────────── หน้าติดต่อ: ช่องทางติดต่อเป็นแถวที่กดได้ทั้งแถว ───────────── */
+.contact-aside { display: grid; align-content: start; gap: 1.25rem; }
+@media (min-width: 1024px) { .contact-aside { position: sticky; top: 6.5rem; } }
+.contact-aside-title { font-size: .9375rem; font-weight: 600; }
+.contact-channels { display: grid; gap: .6rem; }
+.contact-channel {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 1rem; padding: .9rem 1rem;
+  border: 1px solid hsl(var(--border)); border-radius: 1rem; background: hsl(var(--surface));
+  transition: border-color .25s, box-shadow .3s;
+}
+a.contact-channel:hover { border-color: hsl(var(--accent) / .45); box-shadow: 0 16px 34px -28px hsl(var(--shadow-color) / .5); }
+.contact-channel-icon {
+  display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 50%;
+  background: hsl(var(--accent-subtle)); color: hsl(var(--accent));
+}
+.contact-channel-label { display: block; color: hsl(var(--muted-foreground)); font-size: .8125rem; line-height: 1.5; }
+.contact-channel-value { display: block; overflow-wrap: anywhere; font-size: .9375rem; font-weight: 500; line-height: 1.55; }
+.contact-channel-note { display: block; margin-top: .1rem; color: hsl(var(--accent)); font-size: .8125rem; line-height: 1.5; }
+.contact-channel-arrow { color: hsl(var(--muted-foreground)); transition: transform .25s var(--editorial-ease), color .2s; }
+a.contact-channel:hover .contact-channel-arrow { color: hsl(var(--accent)); transform: translate(2px, -2px); }
+.contact-hours { display: flex; gap: .9rem; padding: .25rem .25rem 0; color: hsl(var(--accent)); }
+.contact-hours svg { flex-shrink: 0; margin-top: .2rem; }
+.contact-hours h2 { color: hsl(var(--foreground)); font-size: .9375rem; font-weight: 600; }
+.contact-hours p { margin-top: .15rem; color: hsl(var(--muted-foreground)); font-size: .9375rem; }
+.contact-promise {
+  padding: 1rem 1.1rem; border-left: 2px solid hsl(var(--accent)); border-radius: 0 .75rem .75rem 0; background: hsl(var(--subtle));
+  color: hsl(var(--muted-foreground)); font-size: .9375rem; line-height: 1.75; text-wrap: pretty;
+}
+
+/* ───────────── หน้ารายละเอียดผลงาน ───────────── */
+.work-service { padding: 1.4rem; border: 1px solid hsl(var(--border)); border-radius: 1rem; background: hsl(var(--subtle)); }
+.work-service h2 { color: hsl(var(--muted-foreground)); font-size: .8125rem; font-weight: 500; }
+.work-service-link {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: .3rem;
+  font-family: var(--stack-display); font-size: 1.375rem; font-weight: var(--display-weight, 600); line-height: 1.4; transition: color .2s;
+}
+.work-service-link svg { flex-shrink: 0; color: hsl(var(--accent)); transition: transform .25s var(--editorial-ease); }
+.work-service-link:hover { color: hsl(var(--accent)); }
+.work-service-link:hover svg { transform: translate(2px, -2px); }
+
+/* ───────────── การ์ดรีวิว ───────────── */
+.review-card { transition: border-color .25s, box-shadow .3s; }
+.review-card:hover { border-color: hsl(var(--accent) / .35); box-shadow: 0 18px 40px -30px hsl(var(--shadow-color) / .4); }
+.review-card-mark { color: hsl(var(--accent) / .8); }
+.review-card-text { color: hsl(var(--foreground) / .92); font-size: 1.0625rem; line-height: 1.8; text-wrap: pretty; }
+.review-card-avatar {
+  display: grid; place-items: center; width: 2.5rem; height: 2.5rem; flex-shrink: 0; border-radius: 50%;
+  background: hsl(var(--accent-subtle)); color: hsl(var(--accent)); font-size: 1rem; font-weight: 600; line-height: 1;
+}
+
+/* ───────────── การ์ดที่ใช้ร่วมกับหน้าอื่น ───────────── */
 .public-site .project-image { border-radius: 1rem; }
 .project-compact { min-width: 0; }
 .project-compact .project-image + div { margin-top: 1rem; }
@@ -394,12 +723,17 @@
 .project-compact p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: .9375rem; line-height: 1.75; }
 .public-site .equipment-card { border-radius: var(--editorial-radius); transition: border-color .25s, box-shadow .25s; }
 .public-site .equipment-card:hover { box-shadow: 0 8px 24px hsl(var(--shadow-color) / .07); }
+/* พื้นกล่องสีกระดาษเดียวกับชั้นวางบนหน้าแรก ทั้งสองธีม รูปสินค้าพื้นขาวจึงกลืนไปกับกล่องได้ด้วย multiply */
+.equipment-card-image, .product-tile { background: #f6f4f0; }
+.product-tile img { mix-blend-mode: multiply; }
+.equipment-card-image img { padding: 1.5rem; mix-blend-mode: multiply; transition: transform .6s var(--editorial-ease); }
+.equipment-card:hover .equipment-card-image img { transform: scale(1.04); }
 
 /* ───────────── การเคลื่อนไหว ───────────── */
 @keyframes home-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 @keyframes home-rise-visible { from { transform: translateY(18px); } to { transform: none; } }
 @keyframes home-enter { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
-@keyframes scene-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+@keyframes stage-fallback { to { opacity: 1; } }
 @keyframes case-swap { from { opacity: 0; } to { opacity: 1; } }
 
 /* scroll-driven reveal ของทั้งเว็บ ปิดเฉพาะหน้าแรกเพราะ HomeMotion คุมจังหวะแทน */
@@ -420,9 +754,16 @@
    * ข้อความที่ยังโปร่งใสยังไม่นับว่าแสดงผลสำหรับ LCP การจางเข้าพร้อม delay จึงดัน LCP ออกไป
    * (PageSpeed มือถือ 23 ก.ย. 2026: LCP 4.1 วินาที ชี้ที่ h1#home-title)
    * เลื่อนด้วย transform อย่างเดียว ข้อความขึ้นจอตั้งแต่เฟรมแรก
+   *
+   * บนมือถือย่อหน้าคำอธิบายใหญ่กว่าหัวเรื่อง จึงเป็นตัว LCP แทน (วัด 25 ก.ย.: LCP 2.8 วินาทีที่ p.hero-description
+   * บนมือถือจำลอง CPU ช้าสี่เท่า เน็ต 4G ช้า) ต้องไม่จางเข้าเหมือนกัน
    */
-  .hero-inner > .hero-title { animation-name: home-rise-visible; }
-  .home-hero .studio-stage { animation: scene-in 1.4s .35s var(--editorial-ease) backwards; }
+  .hero-inner > :is(.hero-title, .hero-description) { animation-name: home-rise-visible; }
+  /*
+   * ฉากซ่อนไว้รอ GSAP มาเล่นเปิดฉาก (ไฟติดทีละดวง) ถ้าเห็นฉากสว่างก่อนแล้วค่อยดับลงเล่นใหม่จะดูกระตุก
+   * สคริปต์มาไม่ทันหรือไม่มา CSS เปิดฉากนิ่งให้เองที่ 2.4 วินาที studio-motion.ts เห็นว่าเปิดแล้วก็ข้ามช่วงเปิดฉาก
+   */
+  .home-hero .studio-stage { opacity: 0; animation: stage-fallback .9s 2.4s var(--editorial-ease) forwards; }
   .case-screen img { animation: case-swap .45s var(--editorial-ease); }
 
   /* HomeMotion ติดป้าย pending ให้เฉพาะก้อนที่ยังอยู่ใต้จอ ก้อนบนจอไม่ถูกซ่อน */
@@ -433,10 +774,10 @@
   }
 
   @media (hover: hover) {
-    .gear-card:hover, .service-tile:hover { transform: translateY(-4px); }
+    .gear-card:hover { transform: translateY(-4px); }
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .studio-motion-toggle { display: none; }
-  .case-screen img, .photo-tile img, .gear-card-image img { transition: none; }
+  .case-screen img, .photo-tile img, .gear-card-image img, .equipment-card-image img { transition: none; }
 }

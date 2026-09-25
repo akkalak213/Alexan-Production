@@ -79,6 +79,23 @@ enum LeadSource {
   QUOTE // ขอใบเสนอราคา
   RENTAL // สอบถามเช่าอุปกรณ์
   SERVICE_PAGE // ฟอร์มในหน้าบริการ
+  PRODUCT // สนใจซื้อ/ขอเดโมจากหน้าผลิตภัณฑ์
+}
+
+/// ประเภทผลิตภัณฑ์ที่ขาย — บอกลูกค้าว่าได้รับของแบบไหน และกำหนดชนิดข้อมูลที่ส่งให้ Google
+enum ProductType {
+  SOFTWARE // โปรแกรมซื้อขาด (license)
+  SUBSCRIPTION // ระบบออนไลน์ คิดรายเดือน/รายปี
+  DIGITAL // เทมเพลต ไฟล์ดิจิทัล ดาวน์โหลด
+  PHYSICAL // สินค้าจับต้องได้ ต้องจัดส่ง
+}
+
+/// รอบการคิดเงินของแพ็กเกจผลิตภัณฑ์
+enum BillingCycle {
+  ONE_TIME // ซื้อครั้งเดียว
+  MONTHLY // ต่อเดือน
+  YEARLY // ต่อปี
+  CUSTOM // สอบถามราคา
 }
 
 enum LeadStatus {
@@ -323,15 +340,89 @@ model Equipment {
   @@index([isActive, category, order])
 }
 
+// ─────────────────────────── ผลิตภัณฑ์ ───────────────────────────
+
+/// โปรแกรม ระบบ เทมเพลต หรือสินค้าที่ Alexan Production ขาย
+model Product {
+  id   String      @id @default(cuid())
+  slug String      @unique
+  type ProductType
+
+  nameTh        String
+  nameEn        String
+  taglineTh     String
+  taglineEn     String
+  /// Markdown
+  descriptionTh String @db.Text
+  descriptionEn String @db.Text
+
+  /// จุดเด่น [{ title, detail }]
+  featuresTh Json?
+  featuresEn Json?
+  /// สเปก/ความต้องการระบบ [{ label, value, labelEn?, valueEn? }] — รูปแบบเดียวกับสเปกอุปกรณ์
+  specs      Json?
+  /// [{ question, answer }]
+  faqTh      Json?
+  faqEn      Json?
+
+  coverImage String?
+  gallery    String[]
+  /// YouTube หรือ Vimeo
+  videoUrl   String?
+  /// ทดลองใช้งานหรือดาวน์โหลดตัวทดลอง
+  demoUrl    String?
+  /// ร้านค้าภายนอก ใช้กับแพ็กเกจที่ไม่มีลิงก์ของตัวเอง
+  buyUrl     String?
+
+  status      ContentStatus @default(DRAFT)
+  /// false = สินค้าหมด/ปิดรับชั่วคราว ยังแสดงหน้าแต่บอกลูกค้าตรง ๆ
+  isAvailable Boolean       @default(true)
+  isFeatured  Boolean       @default(false)
+  order       Int           @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  plans ProductPlan[]
+  leads Lead[]
+
+  @@index([status, order])
+}
+
+model ProductPlan {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  nameTh     String
+  nameEn     String
+  /// null = สอบถามราคา
+  price      Decimal?     @db.Decimal(12, 2)
+  billing    BillingCycle @default(ONE_TIME)
+  includesTh String[]
+  includesEn String[]
+  isPopular  Boolean      @default(false)
+  /// ลิงก์ซื้อของแพ็กเกจนี้ ทับลิงก์ร้านค้าของผลิตภัณฑ์
+  buyUrl     String?
+  order      Int          @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leads Lead[]
+
+  @@index([productId, order])
+}
+
 // ─────────────────────────── รีวิว ───────────────────────────
 
 model Review {
   id String @id @default(cuid())
 
-  authorName   String
+  authorName     String
   /// ตำแหน่ง / ชื่อบริษัทของผู้รีวิว
-  authorRole   String?
-  authorAvatar String?
+  authorRole     String?
+  authorAvatar   String?
   /// ไม่แสดงหน้าเว็บ ใช้ติดต่อกลับ / ยืนยันตัวตน
   submitterEmail String?
 
@@ -361,7 +452,7 @@ model Review {
 // ──────────────────── คำขอจากลูกค้า (Lead) ────────────────────
 
 model Lead {
-  id String @id @default(cuid())
+  id      String @id @default(cuid())
   /// รหัสอ้างอิงให้ลูกค้า เช่น AX-2608-0042
   refCode String @unique
 
@@ -370,9 +461,9 @@ model Lead {
   phone   String?
   company String?
 
-  source        LeadSource        @default(CONTACT)
-  services      ServiceCategory[]
-  budgetRange   String?
+  source      LeadSource        @default(CONTACT)
+  services    ServiceCategory[]
+  budgetRange String?
 
   /// แพ็กเกจที่ลูกค้ากดเลือกมาจากหน้าบริการ
   /// เก็บชื่อและราคาไว้เป็นข้อความด้วย เผื่อแพ็กเกจถูกแก้ราคาหรือถูกลบภายหลัง
@@ -381,9 +472,15 @@ model Lead {
   packageName     String?
   packagePriceTag String?
   package         ServicePackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
-  preferredDate DateTime?
-  message       String            @db.Text
-  locale        String            @default("th")
+  /// ผลิตภัณฑ์และแพ็กเกจที่ลูกค้าสนใจ (หน้า /products) — ชื่อกับราคา ณ ตอนกดเก็บใน packageName/packagePriceTag
+  /// ช่องเดียวกับแพ็กเกจบริการ อีเมลแจ้งทีม รายการคำขอ และหน้ารายละเอียดจึงแสดงได้ทันทีโดยไม่ต้องแยกทาง
+  productId       String?
+  product         Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productPlanId   String?
+  productPlan     ProductPlan?    @relation(fields: [productPlanId], references: [id], onDelete: SetNull)
+  preferredDate   DateTime?
+  message         String          @db.Text
+  locale          String          @default("th")
 
   status LeadStatus @default(NEW)
   ipHash String?
@@ -405,11 +502,11 @@ model LeadItem {
   leadId String
   lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
-  equipmentId String?
-  equipment   Equipment? @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
+  equipmentId   String?
+  equipment     Equipment? @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
   /// ชื่ออุปกรณ์ ณ เวลาที่ขอ — กันข้อมูลหายถ้าอุปกรณ์ถูกลบภายหลัง
   labelSnapshot String
-  quantity      Int     @default(1)
+  quantity      Int        @default(1)
   days          Int?
 
   @@index([leadId])
@@ -432,7 +529,7 @@ model LeadNote {
 // ──────────────────── ใบเสนอราคา ────────────────────
 
 model Quote {
-  id String @id @default(cuid())
+  id          String @id @default(cuid())
   /// เลขที่ใบเสนอราคา เช่น QT-2608-0007
   quoteNumber String @unique
 
@@ -452,11 +549,11 @@ model Quote {
   issueDate  DateTime @default(now())
   validUntil DateTime
 
-  subtotal Decimal @default(0) @db.Decimal(12, 2)
-  discount Decimal @default(0) @db.Decimal(12, 2)
+  subtotal          Decimal @default(0) @db.Decimal(12, 2)
+  discount          Decimal @default(0) @db.Decimal(12, 2)
   /// อัตราภาษีมูลค่าเพิ่ม (%)
-  vatRate  Decimal @default(7) @db.Decimal(5, 2)
-  vatAmount Decimal @default(0) @db.Decimal(12, 2)
+  vatRate           Decimal @default(7) @db.Decimal(5, 2)
+  vatAmount         Decimal @default(0) @db.Decimal(12, 2)
   /// อัตราภาษีหัก ณ ที่จ่าย (%) — ปกติ 3% สำหรับค่าบริการ
   withholdingRate   Decimal @default(0) @db.Decimal(5, 2)
   withholdingAmount Decimal @default(0) @db.Decimal(12, 2)
@@ -536,14 +633,14 @@ model Post {
 // ─────────────────────────── ทีมงาน ───────────────────────────
 
 model TeamMember {
-  id     String  @id @default(cuid())
-  name   String
-  roleTh String
-  roleEn String
-  bioTh  String? @db.Text
-  bioEn  String? @db.Text
-  photo  String?
-  email  String?
+  id      String  @id @default(cuid())
+  name    String
+  roleTh  String
+  roleEn  String
+  bioTh   String? @db.Text
+  bioEn   String? @db.Text
+  photo   String?
+  email   String?
   /// { instagram, facebook, linkedin, github, website }
   socials Json?
 
@@ -559,7 +656,7 @@ model TeamMember {
 // ──────────────── คลังไฟล์ (Cloudflare R2) ────────────────
 
 model MediaAsset {
-  id String @id @default(cuid())
+  id  String @id @default(cuid())
   /// object key ใน R2
   key String @unique
   url String
@@ -572,7 +669,7 @@ model MediaAsset {
   blurData String?
   altTh    String?
   altEn    String?
-  folder   String @default("uploads")
+  folder   String  @default("uploads")
 
   uploadedById String?
   uploadedBy   User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
